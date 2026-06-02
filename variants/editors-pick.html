@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vrastislav Vender</title>
+<style>
+  /* ============================================================
+     VRASTISLAV VENDER — cinematic spotlight reveal
+     A single volumetric beam descends from the dark onto the SIX
+     letters spelling VRAVEN: VRA (first three of VRASTISLAV) stacked
+     over VEN (first three of VENDER). The words are STACKED + LEFT-
+     ALIGNED so the lit letters form one vertical column a single
+     shaft can light; the dim tails (STISLAV / DER) trail right into
+     shadow. Layered screen-blend god-ray shafts + a bright core make
+     the cone; a blurred duplicate of the name is the VRAVEN bloom.
+     The resting scene IS the plain CSS; one `.revealed` class with
+     per-property transition-delays stages a two-beat reveal (name
+     fades up DIM -> hold -> VRAVEN ignites -> contact LAST), so
+     replay, reduced-motion and end-state parity come for free. Only
+     transform/opacity/filter animate; dim letters use a SOLID warm
+     grey so the full name is always recoverable.
+     ============================================================ */
+
+  :root {
+    --beam: 255, 233, 196;        /* warm-white beam tint (rgb) */
+    /* Horizontal anchor for BOTH the lit column and the light shaft,
+       so they never desync across viewports (no runtime rect math). */
+    --beam-x: 34%;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+    background: #000;             /* deep true black */
+    color: #fff;
+    overflow: hidden;
+    font-family: Georgia, 'Times New Roman', 'Hoefler Text', serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Full-bleed stage. Click anywhere to replay. */
+  .stage {
+    position: fixed;
+    inset: 0;
+    background: #000;
+    cursor: pointer;
+    isolation: isolate;           /* contain the screen blend modes */
+    overflow: hidden;
+  }
+
+  /* ---- Volumetric light shafts --------------------------------
+     Angled screen-blended gradient layers whose overlaps brighten
+     into a soft god-ray cone, anchored at --beam-x. Starts collapsed
+     and dim, opens up during the reveal. ------------------------*/
+  .rays {
+    position: absolute;
+    top: -45%;
+    left: var(--beam-x);          /* shaft origin = lit-letter column */
+    width: 60vmax;
+    height: 165%;
+    transform: translateX(-50%) translateY(-12%) scaleY(0.6);
+    transform-origin: 50% 0%;
+    pointer-events: none;
+    mix-blend-mode: screen;
+    opacity: 0;
+    transition: opacity 1.4s ease, transform 1.6s cubic-bezier(.2,.7,.2,1);
+    z-index: 1;
+  }
+  .ray {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 26vmax;
+    height: 100%;
+    background: linear-gradient(
+      to bottom,
+      rgba(var(--beam), 0.00) 0%,
+      rgba(var(--beam), 0.14) 32%,
+      rgba(var(--beam), 0.05) 68%,
+      rgba(var(--beam), 0.00) 100%
+    );
+    filter: blur(26px);
+    transform-origin: 50% 0%;
+    will-change: transform, opacity;
+  }
+  /* Fan the shafts at slightly different angles & widths so the
+     overlap reads as a soft volumetric cone, not flat bars. */
+  .ray.r1 { transform: translateX(-50%) rotate(-7deg) scaleX(0.55); opacity: .85; }
+  .ray.r2 { transform: translateX(-50%) rotate(-2deg) scaleX(0.85); opacity: 1;   }
+  .ray.r3 { transform: translateX(-50%) rotate( 3deg) scaleX(0.68); opacity: .92; }
+  .ray.r4 { transform: translateX(-50%) rotate( 8deg) scaleX(0.46); opacity: .8;  }
+  /* A bright, narrow core shaft sitting on top of the fan. It is the
+     "hot" centre of the beam and must overlap the VRAVEN column. */
+  .ray.core {
+    width: 13vmax;
+    background: linear-gradient(
+      to bottom,
+      rgba(var(--beam), 0.00) 0%,
+      rgba(var(--beam), 0.40) 28%,
+      rgba(var(--beam), 0.12) 72%,
+      rgba(var(--beam), 0.00) 100%
+    );
+    filter: blur(16px);
+    transform: translateX(-50%) rotate(0deg) scaleX(0.9);
+  }
+
+  /* Soft pool of light landing on the lit column. */
+  .pool {
+    position: absolute;
+    top: 50%;
+    left: var(--beam-x);
+    width: 64vmax;
+    height: 42vmax;
+    transform: translate(-50%, -50%);
+    background: radial-gradient(
+      ellipse 40% 40% at 50% 50%,
+      rgba(var(--beam), 0.20) 0%,
+      rgba(var(--beam), 0.06) 46%,
+      rgba(var(--beam), 0.00) 70%
+    );
+    mix-blend-mode: screen;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 1.6s ease 0.4s;
+    z-index: 1;
+  }
+
+  /* ---- Drifting dust caught in the beam ---------------------- */
+  .dust {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    mix-blend-mode: screen;
+    opacity: 0;
+    transition: opacity 2s ease 0.6s;
+    z-index: 2;
+  }
+  .mote {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(var(--beam), 0.9);
+    filter: blur(0.5px);
+    will-change: transform, opacity;
+    animation: drift linear infinite;
+  }
+  @keyframes drift {
+    0%   { transform: translate3d(0, 0, 0);                 opacity: 0;  }
+    12%  {                                                   opacity: .8; }
+    88%  {                                                   opacity: .5; }
+    100% { transform: translate3d(var(--dx), var(--dy), 0); opacity: 0;  }
+  }
+
+  /* ---- Name layout -------------------------------------------
+     Words stack, left-anchored at --beam-x so the lit V/R/A column
+     sits over the lit V/E/N column under the shaft; dim tails trail
+     right. Resize-proof geometry (no JS rects): the wrap's left edge
+     sits at --beam-x, then shifts left by --lit-half (~1.3 glyphs of
+     the clamped word size), landing the lit-group centre on --beam-x.
+     A low rem floor lets the type shrink to ~320px so the long word
+     never clips under .stage's overflow:hidden. ------------------*/
+  .name-wrap {
+    position: absolute;
+    top: 50%;
+    left: var(--beam-x);
+    font-size: clamp(1.6rem, 9vw, 7.6rem);  /* `em` below = glyph size */
+    --lit-half: 1.30em;           /* half-width of a 3-glyph lit group */
+    transform: translate(calc(-1 * var(--lit-half)), -50%);
+    z-index: 3;
+  }
+
+  .name {
+    margin: 0;
+    text-align: left;
+    line-height: 0.98;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-weight: 400;
+    user-select: text;
+  }
+  /* Each word is its own block on its own line; nowrap keeps each
+     word's letters together so VRA / VEN never split. Font-size is
+     capped (low vw term + rem ceiling) so VRASTISLAV never clips a
+     narrow viewport. */
+  .word {
+    display: block;
+    white-space: nowrap;
+    font-size: clamp(1.6rem, 9vw, 7.6rem);
+  }
+
+  .word .l { display: inline-block; }
+
+  /* Every letter starts hidden, then fades up to the DIM resting tone.
+     Lit (VRAVEN) letters ALSO start dim — they ignite later, so that
+     beat is distinct. Dim = SOLID warm grey (not compounded opacity)
+     so STISLAV / DER stay legible and the full name is recoverable. */
+  .l {
+    color: #6b6256;               /* faint, shadow-dwelling */
+    opacity: 0;
+    text-shadow: none;
+    transition: opacity 1.5s ease, color 1.2s ease, text-shadow 1.2s ease;
+  }
+
+  /* Blurred duplicate of the whole name behind the real text = the
+     bloom layer. Only the lit letters carry visible bloom (dim ones
+     are transparent here). Animated on opacity only. */
+  .name.bloom {
+    position: absolute;
+    z-index: 2;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    filter: blur(13px) saturate(118%);
+    mix-blend-mode: screen;
+    opacity: 0;
+    transition: opacity 1.5s ease 1.6s;   /* bloom arrives WITH the ignite */
+  }
+  .name.bloom .l     { color: transparent; text-shadow: none; }
+  .name.bloom .l.lit {
+    color: #ffd089;
+    text-shadow: 0 0 26px #ffd089;
+    transition: color 1.2s ease 1.6s, text-shadow 1.2s ease 1.6s;
+  }
+
+  /* ---- Vignette: darken edges, focus the centre column. ------ */
+  .vignette {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 4;
+    background: radial-gradient(
+      ellipse 80% 78% at var(--beam-x) 50%,
+      rgba(0,0,0,0)    32%,
+      rgba(0,0,0,0.52) 72%,
+      rgba(0,0,0,0.92) 100%
+    );
+  }
+
+  /* ---- Contact: low-key, fades in LAST (after the ignite). --- */
+  .contact {
+    position: absolute;
+    bottom: clamp(1.6rem, 5vh, 3.4rem);
+    left: 50%;
+    transform: translateX(-50%) translateY(8px);
+    z-index: 5;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5em clamp(1rem, 4vw, 2.4rem);
+    font-family: -apple-system, 'Segoe UI', system-ui, sans-serif;
+    font-size: clamp(0.72rem, 1.9vw, 0.9rem);
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    opacity: 0;
+    /* Delay so contact arrives only after VRAVEN has ignited. */
+    transition: opacity 1.4s ease 2.6s, transform 1.4s ease 2.6s;
+  }
+  .contact a {
+    color: #b9ad99;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: color .35s ease, text-shadow .35s ease;
+  }
+  .contact a:hover,
+  .contact a:focus-visible {
+    color: #ffe9c4;
+    text-shadow: 0 0 12px rgba(255, 224, 170, .6);
+    outline: none;
+  }
+  .contact .sep { color: #4a443a; }
+
+  /* Subtle replay affordance, top-right; appears with the contact. */
+  .replay {
+    position: absolute;
+    top: clamp(1.2rem, 4vh, 2.2rem);
+    right: clamp(1.2rem, 4vw, 2.4rem);
+    z-index: 6;
+    font-family: -apple-system, system-ui, sans-serif;
+    font-size: 0.64rem;
+    letter-spacing: 0.26em;
+    text-transform: uppercase;
+    color: #8a8174;                       /* a touch brighter so it's findable */
+    background: none;
+    border: 1px solid rgba(var(--beam), 0.16);
+    border-radius: 999px;
+    padding: 0.5em 1.05em;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 1.4s ease 2.8s, color .35s ease, border-color .35s ease;
+  }
+  .replay:hover,
+  .replay:focus-visible {
+    color: #ffe9c4;
+    border-color: rgba(var(--beam), 0.45);
+    outline: none;
+  }
+
+  /* "Revealed" end-state. One class drives every transition; the
+     staged FEEL comes from per-property transition-delays in the CSS:
+     rays/pool/dust + DIM letters at 0s, VRAVEN ignite at ~1.6s,
+     contact/replay last at ~2.6s. */
+  .stage.revealed .rays       { opacity: 1; transform: translateX(-50%) translateY(0) scaleY(1); }
+  .stage.revealed .pool       { opacity: 1; }
+  .stage.revealed .dust       { opacity: 1; }
+  .stage.revealed .l          { opacity: 1; }                 /* dim name appears */
+  .stage.revealed .name.bloom { opacity: 1; }                 /* bloom (delayed)  */
+  .stage.revealed .contact    { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .stage.revealed .replay     { opacity: 1; }
+
+  /* The ignite: lit letters go warm + glow, but only AFTER the dim
+     name has materialised — note the 1.6s delay on colour/shadow. */
+  .stage.revealed .l.lit {
+    color: #fff8ec;
+    text-shadow:
+      0 0 6px   rgba(255, 233, 196, .95),
+      0 0 16px  rgba(255, 224, 170, .75),
+      0 0 38px  rgba(255, 208, 137, .55),
+      0 0 80px  rgba(255, 200, 120, .40),
+      0 0 140px rgba(255, 190, 110, .26);
+    transition: opacity 1.5s ease,
+                color 1.2s ease 1.6s,
+                text-shadow 1.4s ease 1.6s;
+  }
+
+  /* Gentle perpetual "breathing" on the rays once at rest. */
+  .stage.revealed .rays { animation: breathe 9s ease-in-out 4s infinite; }
+  @keyframes breathe {
+    0%, 100% { opacity: 1;   }
+    50%      { opacity: .84; }
+  }
+  /* Slow living shimmer on the lit letters at rest (filter only). */
+  .stage.revealed .l.lit { animation: emberPulse 6s ease-in-out 4.2s infinite; }
+  @keyframes emberPulse {
+    0%, 100% { filter: brightness(1);    }
+    50%      { filter: brightness(1.1);  }
+  }
+
+  /* ---- Mobile: lighten the leftward bias so the long word fits.
+     On narrow screens the words effectively centre under the beam,
+     and the dim tails simply extend toward the right edge. -------*/
+  @media (max-width: 560px) {
+    :root { --beam-x: 44%; }
+    /* on narrow screens the lit group is wider relative to the viewport,
+       so a slightly smaller half-shift keeps the dim tails on-screen */
+    .name-wrap { --lit-half: 1.35em; }
+  }
+
+  /* ---- Reduced motion: present the final state immediately. --- */
+  @media (prefers-reduced-motion: reduce) {
+    .rays, .pool, .dust, .l, .name.bloom, .contact, .replay,
+    .stage.revealed .l.lit {
+      transition: none !important;
+    }
+    .stage.revealed .rays,
+    .stage.revealed .l.lit { animation: none !important; }
+    .mote { animation: none !important; opacity: .5 !important; }
+  }
+</style>
+</head>
+<body>
+  <main class="stage" id="stage">
+    <!-- Volumetric god-ray shafts (screen-blended), anchored on the
+         lit-letter column so the beam falls ON the VRAVEN letters. -->
+    <div class="rays" aria-hidden="true">
+      <span class="ray r1"></span>
+      <span class="ray r2"></span>
+      <span class="ray r3"></span>
+      <span class="ray r4"></span>
+      <span class="ray core"></span>
+    </div>
+
+    <!-- Soft pool of light on the text -->
+    <div class="pool" aria-hidden="true"></div>
+
+    <!-- Drifting dust motes (populated by JS) -->
+    <div class="dust" id="dust" aria-hidden="true"></div>
+
+    <div class="name-wrap">
+      <!-- Bloom layer: blurred duplicate of the name behind the real one -->
+      <h1 class="name bloom" id="bloom" aria-hidden="true"></h1>
+
+      <!-- The real, selectable name. Full text is always in the DOM so
+           screen readers and selection recover "VRASTISLAV VENDER".
+           aria-label gives a clean spoken name on the heading itself. -->
+      <h1 class="name" id="name" aria-label="Vrastislav Vender">
+        <span class="word" id="w1"></span>
+        <span class="word" id="w2"></span>
+      </h1>
+    </div>
+
+    <!-- Edge vignette, centred on the beam column -->
+    <div class="vignette" aria-hidden="true"></div>
+
+    <!-- Refined contact, fades in last -->
+    <nav class="contact" id="contact" aria-label="Contact">
+      <a href="mailto:hello@vraven.com">hello@vraven.com</a>
+      <span class="sep" aria-hidden="true">&middot;</span>
+      <a href="tel:+420123456789">+420&nbsp;123&nbsp;456&nbsp;789</a>
+    </nav>
+
+    <button class="replay" id="replay" type="button" aria-label="Replay animation">Replay</button>
+  </main>
+
+<script>
+(function () {
+  'use strict';
+
+  /* Build the name from data so lit/dim accounting is explicit.
+     lit = how many leading letters glow. VRASTISLAV -> V R A lit;
+     VENDER -> V E N lit. Read top-to-bottom = V R A  V E N = VRAVEN. */
+  var WORDS = [
+    { id: 'w1', text: 'VRASTISLAV', lit: 3 },
+    { id: 'w2', text: 'VENDER',     lit: 3 }
+  ];
+
+  // Render one letter-span per character into a target container.
+  function renderInto(container, word) {
+    var frag = document.createDocumentFragment();
+    for (var i = 0; i < word.text.length; i++) {
+      var s = document.createElement('span');
+      s.className = 'l' + (i < word.lit ? ' lit' : '');
+      s.textContent = word.text[i];
+      frag.appendChild(s);
+    }
+    container.appendChild(frag);
+  }
+
+  var bloom = document.getElementById('bloom');
+  WORDS.forEach(function (w) {
+    // Real, selectable name.
+    renderInto(document.getElementById(w.id), w);
+    // Mirror into the bloom layer (its own .word per word, matching layout).
+    var bw = document.createElement('span');
+    bw.className = 'word';
+    renderInto(bw, w);
+    bloom.appendChild(bw);
+  });
+
+  /* --- Drifting dust motes caught in the beam.  Clustered toward the
+         beam column (--beam-x) so the dust "catches" the light. --- */
+  var dust = document.getElementById('dust');
+  var beamXpct = parseFloat(getComputedStyle(document.documentElement)
+                            .getPropertyValue('--beam-x')) || 34;
+  var MOTES = 24;
+  for (var i = 0; i < MOTES; i++) {
+    var m = document.createElement('span');
+    m.className = 'mote';
+    var size = 1 + Math.random() * 2.6;
+    var x = beamXpct + (Math.random() - 0.5) * 38;  // % across, around the shaft
+    var y = Math.random() * 100;                    // % down
+    m.style.width = m.style.height = size.toFixed(2) + 'px';
+    m.style.left = x.toFixed(2) + '%';
+    m.style.top  = y.toFixed(2) + '%';
+    m.style.setProperty('--dx', ((Math.random() - 0.5) * 60).toFixed(1) + 'px');
+    m.style.setProperty('--dy', (-30 - Math.random() * 90).toFixed(1) + 'px');
+    var dur = 9 + Math.random() * 12;
+    m.style.animationDuration = dur.toFixed(1) + 's';
+    m.style.animationDelay = (-Math.random() * dur).toFixed(1) + 's';
+    m.style.opacity = (0.3 + Math.random() * 0.5).toFixed(2);
+    dust.appendChild(m);
+  }
+
+  /* Reveal: one .revealed class drives every transition; the staged
+     feel (rays -> dim name -> VRAVEN ignite -> contact) comes entirely
+     from per-property transition-delays in the CSS. */
+  var stage  = document.getElementById('stage');
+  var mql    = window.matchMedia('(prefers-reduced-motion: reduce)');
+  var revealTimer = null;
+
+  function reveal() {
+    // Restage cleanly: drop class, force reflow, re-add after a beat so
+    // every transition re-fires from the start on replay.
+    stage.classList.remove('revealed');
+    void stage.offsetWidth;
+
+    if (mql.matches) {
+      stage.classList.add('revealed');   // jump straight to the rest state
+      return;
+    }
+    clearTimeout(revealTimer);
+    revealTimer = setTimeout(function () {
+      stage.classList.add('revealed');
+    }, 650);   // 1. "hold on pure black for a beat"
+  }
+
+  // Replay on tapping the stage, or via the explicit Replay control.
+  stage.addEventListener('click', function (e) {
+    if (e.target.closest('a') || e.target.closest('button')) return; // don't hijack
+    var sel = window.getSelection();
+    if (sel && sel.toString().length) return;     // don't fight a selection
+    reveal();
+  });
+  document.getElementById('replay').addEventListener('click', function (e) {
+    e.stopPropagation();
+    reveal();
+  });
+  // Keyboard: Enter / Space replays (ignored while a link is focused).
+  window.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      if (document.activeElement && document.activeElement.tagName === 'A') return;
+      e.preventDefault();
+      reveal();
+    }
+  });
+
+  // Live-respond if the user toggles the reduced-motion preference.
+  var onPref = function () { reveal(); };
+  if (mql.addEventListener) mql.addEventListener('change', onPref);
+  else if (mql.addListener) mql.addListener(onPref);   // older engines
+
+  // Kick it off on load.
+  reveal();
+})();
+</script>
+</body>
+</html>

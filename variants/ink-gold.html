@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vrastislav Vender</title>
+<style>
+  /* ============================================================
+     INK & GOLD — quiet-luxury landing for Vrastislav Vender.
+
+     Deep ink-black ground. The full name "VRASTISLAV VENDER"
+     appears faintly out of the dark, then the six letters that
+     spell VRAVEN ignite as gold foil:
+         VRASTISLAV -> lit V,R,A ; dim S,T,I,S,L,A,V
+         VENDER     -> lit V,E,N ; dim D,E,R
+     Read left-to-right the lit letters spell V-R-A-V-E-N.
+
+     Gold foil = a warm metallic linear-gradient clipped to each
+     LIT glyph (applied per-letter because lit letters are non-
+     contiguous inside each word). A pale-gold specular GLINT
+     sweeps across like light catching metal.
+
+     Performance contract: we animate ONLY transform / opacity /
+     filter. Canvas dust uses requestAnimationFrame. No layout
+     animation, no animated background-position.
+     ============================================================ */
+
+  :root {
+    --ink:    #07070a;   /* deepest background ink                 */
+    --ink-2:  #11100c;   /* warm radial lift behind the name       */
+    --dim:    #5a554c;   /* visible-but-faint resting letters       */
+
+    /* Gold-foil stops — warm, metallic, bright specular core.     */
+    --gold-1: #6b4f1d;
+    --gold-2: #b88a32;
+    --gold-3: #f8e7ab;   /* brightest highlight                    */
+    --gold-4: #e6c163;
+    --gold-5: #9c7322;
+
+    /* Choreography timeline (ms). JS reads these so CSS + JS stay
+       in sync — single source of truth for the staging.          */
+    --t-beam:    700;    /* beam arrives out of the dark           */
+    --t-name:   1500;    /* whole name materialises, faint         */
+    --t-ignite: 2350;    /* VRAVEN letters ignite to gold          */
+    --t-rest:   3600;    /* bloom settles to soft resting glow     */
+    --t-contact:4100;    /* contact + replay fade in last          */
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+
+  body {
+    background:
+      radial-gradient(125% 95% at 50% 40%, var(--ink-2) 0%, var(--ink) 58%),
+      var(--ink);
+    color: #fff;
+    font-family: "Hoefler Text", "Iowan Old Style", Palatino,
+                 "Palatino Linotype", "Times New Roman", Georgia, serif;
+    min-height: 100svh;
+    display: flex;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Stage holds every layer; click/tap anywhere to replay.        */
+  .stage {
+    position: relative;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(2rem, 6vh, 4.5rem);
+    padding: clamp(1.5rem, 6vw, 4rem);
+    isolation: isolate;            /* contain the glint blend mode  */
+    cursor: pointer;
+  }
+
+  /* ---- Atmosphere: the soft beam descending out of the dark --- */
+  /* Pure mood lighting; the per-letter gold does the literal
+     "illuminate six". A cone of warm light from above-centre.     */
+  .beam {
+    position: absolute;
+    left: 50%;
+    top: -14%;
+    width: clamp(360px, 82vw, 940px);
+    height: 150%;
+    transform: translateX(-50%) translateY(-4%) scaleY(1.08);
+    background:
+      radial-gradient(58% 52% at 50% 30%,
+        rgba(248, 231, 171, 0.18) 0%,
+        rgba(230, 193, 99, 0.08) 36%,
+        rgba(0, 0, 0, 0) 68%);
+    opacity: 0;
+    filter: blur(7px);
+    pointer-events: none;
+    z-index: 0;
+    will-change: opacity;
+  }
+
+  /* Canvas of slow drifting gold dust motes. */
+  #dust {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 1400ms ease;
+  }
+
+  /* ---- Headline -------------------------------------------- */
+  .headline {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    line-height: 1.04;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: center;
+    gap: 0 clamp(0.45em, 2.6vw, 0.82em);   /* space BETWEEN words   */
+    font-weight: 400;
+    font-size: clamp(2.1rem, 11vw, 8rem);
+    letter-spacing: clamp(0.05em, 1.3vw, 0.17em);
+  }
+
+  /* Each word is an unbreakable unit so VRA / VEN never split.    */
+  .word {
+    display: inline-flex;
+    white-space: nowrap;
+  }
+
+  /* Base letter: dim, in-shadow resting state. Starts fully
+     transparent and is faded up to its dim opacity during the
+     choreography.                                                 */
+  .ltr {
+    display: inline-block;
+    color: var(--dim);
+    opacity: 0;
+    transform: translateY(0.14em);
+    transition:
+      opacity   820ms ease,
+      transform 820ms cubic-bezier(.2,.7,.2,1);
+    will-change: opacity, transform;
+  }
+
+  /* GOLD FOIL — only on the six lit letters (VRA + VEN). The
+     gradient is clipped to each glyph; applied PER LETTER because
+     lit letters are non-contiguous inside their word.            */
+  .ltr.lit {
+    color: transparent;
+    background-image: linear-gradient(
+      168deg,
+      var(--gold-1)   0%,
+      var(--gold-2)  22%,
+      var(--gold-3)  44%,
+      var(--gold-4)  58%,
+      var(--gold-5)  78%,
+      var(--gold-2) 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    /* Warm bloom; dark until ignition, blooms via filter.         */
+    filter: drop-shadow(0 0 0 rgba(248, 231, 171, 0));
+  }
+
+  /* ---- Phase classes drive the choreography ---------------- */
+  /* p-beam: the beam arrives out of the dark. */
+  .stage.p-beam .beam { opacity: 1; transition: opacity 1200ms ease; }
+
+  /* p-name: whole name appears, faint (dim) — present in shadow.  */
+  .stage.p-name .ltr { opacity: 0.42; transform: translateY(0); }
+
+  /* p-ignite: VRAVEN letters bloom to full gold; the rest stay
+     dim (settling a touch darker so the gold reads as the light). */
+  .stage.p-ignite .ltr     { opacity: 0.30; }
+  .stage.p-ignite .ltr.lit {
+    opacity: 1;
+    filter: drop-shadow(0 0 16px rgba(248, 231, 171, 0.55))
+            drop-shadow(0 0 40px rgba(230, 193, 99, 0.30));
+    transition: opacity 1000ms ease, filter 1200ms ease;
+  }
+  .stage.p-ignite #dust { opacity: 1; }
+
+  /* p-rest: settle the bloom to a soft, expensive resting glow.   */
+  .stage.p-rest .ltr.lit {
+    filter: drop-shadow(0 0 9px  rgba(248, 231, 171, 0.34))
+            drop-shadow(0 0 24px rgba(230, 193, 99, 0.17));
+    transition: filter 1500ms ease;
+  }
+
+  /* ---- The specular GLINT ---------------------------------- */
+  /* A narrow skewed band of pale-gold light positioned over the
+     headline. mix-blend-mode:overlay so it brightens the gold
+     foil but is a near no-op over the near-black ground (unlike
+     screen, which would wash the whole stage). Animated via
+     transform translateX only -> a clean sweep across the foil.  */
+  .glint {
+    position: absolute;
+    z-index: 3;
+    top: 50%;
+    left: 50%;
+    width: 26%;
+    height: 150%;
+    transform: translate(-50%, -50%) translateX(-360%) skewX(-16deg);
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0)   0%,
+      rgba(255, 248, 225, 0)  34%,
+      rgba(255, 251, 238, 1)  50%,
+      rgba(255, 248, 225, 0)  66%,
+      rgba(255, 255, 255, 0) 100%
+    );
+    mix-blend-mode: overlay;
+    pointer-events: none;
+    opacity: 0;
+    filter: blur(2px);
+    will-change: transform;
+  }
+  /* One slow sweep on ignite, then a gentle repeating sweep at rest.
+     Both use the same keyframe so there is no positional jump when
+     the looping animation takes over. */
+  .stage.p-ignite .glint {
+    opacity: 1;
+    animation: glint-sweep 3500ms cubic-bezier(.45,0,.55,1) 1 both;
+  }
+  .stage.p-rest .glint {
+    opacity: 1;
+    animation: glint-sweep 7200ms ease-in-out 900ms infinite;
+  }
+  @keyframes glint-sweep {
+    0%   { transform: translate(-50%, -50%) translateX(-360%) skewX(-16deg); }
+    100% { transform: translate(-50%, -50%) translateX( 360%) skewX(-16deg); }
+  }
+
+  /* ---- Contact: small, refined, fades in last -------------- */
+  .contact {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 1300ms ease, transform 1300ms ease;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+                 Roboto, Helvetica, Arial, sans-serif;
+  }
+  .stage.p-contact .contact { opacity: 1; transform: translateY(0); }
+
+  .contact .rule {
+    width: 44px;
+    height: 1px;
+    margin: 0 auto 1.4rem;
+    background: linear-gradient(90deg,
+      transparent, var(--gold-4), transparent);
+    opacity: 0.65;
+  }
+  .contact a {
+    display: inline-block;
+    color: #cabfab;
+    text-decoration: none;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    font-size: clamp(0.62rem, 2.4vw, 0.78rem);
+    padding: 0.35em 0;
+    margin: 0 clamp(0.7rem, 3vw, 1.4rem);
+    transition: color 300ms ease, text-shadow 300ms ease;
+  }
+  .contact a:hover,
+  .contact a:focus-visible {
+    color: var(--gold-3);
+    text-shadow: 0 0 0.7em rgba(230, 193, 99, 0.45);
+    outline: none;
+  }
+  .contact .sep { color: #3a382f; }
+
+  /* ---- Subtle replay control ------------------------------- */
+  .replay {
+    position: absolute;
+    right: clamp(1rem, 4vw, 2rem);
+    bottom: clamp(1rem, 4vw, 2rem);
+    z-index: 4;
+    background: none;
+    border: 1px solid rgba(202, 191, 171, 0.18);
+    border-radius: 999px;
+    color: rgba(202, 191, 171, 0.55);
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 0.6rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 0.55em 1.1em;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 900ms ease, color 300ms ease, border-color 300ms ease;
+  }
+  .stage.p-contact .replay { opacity: 1; }
+  .replay:hover, .replay:focus-visible {
+    color: var(--gold-3);
+    border-color: rgba(230, 193, 99, 0.5);
+    outline: none;
+  }
+
+  /* ---- Reduced motion: jump straight to the resting state ---- */
+  /* Disable every transition/animation; JS adds ALL phase classes
+     at once so the name is fully visible (lit gold + dim) with no
+     intro, and the dust rAF loop never starts.                    */
+  @media (prefers-reduced-motion: reduce) {
+    .ltr, .ltr.lit, .beam, .glint, #dust,
+    .contact, .replay {
+      transition: none !important;
+      animation: none !important;
+    }
+    .glint { display: none; }   /* no sweeping band */
+    #dust  { display: none; }   /* no rAF dust loop */
+  }
+</style>
+</head>
+<body>
+  <main class="stage" id="stage" aria-label="Vrastislav Vender — portfolio">
+
+    <!-- Atmosphere: the descending beam (decorative). -->
+    <div class="beam" aria-hidden="true"></div>
+
+    <!-- Gold dust motes drifting in the beam. -->
+    <canvas id="dust" aria-hidden="true"></canvas>
+
+    <!--
+      Headline. aria-label gives screen readers the clean full name;
+      the decorative per-letter spans are aria-hidden yet remain real,
+      selectable text. A real (aria-hidden) space span between the two
+      words means copy/select yields "VRASTISLAV VENDER".
+
+      Each .word is an unbreakable flex unit; its lit letters are the
+      first three glyphs:
+        VRASTISLAV -> lit V,R,A ; dim S,T,I,S,L,A,V
+        VENDER     -> lit V,E,N ; dim D,E,R
+      Lit letters, left-to-right = V R A V E N = VRAVEN.
+    -->
+    <h1 class="headline" aria-label="Vrastislav Vender">
+      <span class="word" aria-hidden="true"
+        ><span class="ltr lit">V</span
+        ><span class="ltr lit">R</span
+        ><span class="ltr lit">A</span
+        ><span class="ltr">S</span
+        ><span class="ltr">T</span
+        ><span class="ltr">I</span
+        ><span class="ltr">S</span
+        ><span class="ltr">L</span
+        ><span class="ltr">A</span
+        ><span class="ltr">V</span
+      ></span>
+      <span class="space" aria-hidden="true"> </span>
+      <span class="word" aria-hidden="true"
+        ><span class="ltr lit">V</span
+        ><span class="ltr lit">E</span
+        ><span class="ltr lit">N</span
+        ><span class="ltr">D</span
+        ><span class="ltr">E</span
+        ><span class="ltr">R</span
+      ></span>
+    </h1>
+
+    <!-- The specular glint band, blended over the headline. -->
+    <div class="glint" aria-hidden="true"></div>
+
+    <!-- Contact: real links, fades in last. -->
+    <address class="contact">
+      <div class="rule" aria-hidden="true"></div>
+      <a href="mailto:hello@vraven.com">hello@vraven.com</a
+      ><span class="sep" aria-hidden="true">/</span
+      ><a href="tel:+420123456789">+420&nbsp;123&nbsp;456&nbsp;789</a>
+    </address>
+
+    <!-- Subtle replay control (also: click/tap anywhere on the stage). -->
+    <button class="replay" id="replay" type="button"
+      aria-label="Replay animation">Replay</button>
+  </main>
+
+<script>
+(function () {
+  "use strict";
+
+  var stage  = document.getElementById("stage");
+  var replay = document.getElementById("replay");
+  var canvas = document.getElementById("dust");
+
+  var reduceMQ = window.matchMedia
+    ? window.matchMedia("(prefers-reduced-motion: reduce)")
+    : { matches: false, addEventListener: function () {} };
+
+  /* Read the timeline from CSS custom properties so JS and CSS never
+     drift apart. */
+  function ms(name, fallback) {
+    var v = getComputedStyle(document.documentElement)
+              .getPropertyValue(name).trim();
+    var n = parseFloat(v);
+    return isNaN(n) ? fallback : n;
+  }
+  var T = {
+    beam:    ms("--t-beam",     700),
+    name:    ms("--t-name",    1500),
+    ignite:  ms("--t-ignite",  2350),
+    rest:    ms("--t-rest",    3600),
+    contact: ms("--t-contact", 4100)
+  };
+
+  var PHASES = ["p-beam", "p-name", "p-ignite", "p-rest", "p-contact"];
+  var timers = [];
+
+  function clearTimers() {
+    for (var i = 0; i < timers.length; i++) clearTimeout(timers[i]);
+    timers = [];
+  }
+  function at(t, fn) { timers.push(setTimeout(fn, t)); }
+  function removePhases() {
+    for (var i = 0; i < PHASES.length; i++) stage.classList.remove(PHASES[i]);
+  }
+
+  /* Final resting state with no intro. Add ALL phase classes so the
+     name is fully visible (lit letters opacity 1, dim letters 0.30);
+     CSS source order makes p-rest's softer filter win over p-ignite's.
+     Used for reduced motion. */
+  function showFinal() {
+    clearTimers();
+    for (var i = 0; i < PHASES.length; i++) stage.classList.add(PHASES[i]);
+  }
+
+  /* Run the full cinematic timeline from black. */
+  function play() {
+    clearTimers();
+    removePhases();
+
+    if (reduceMQ.matches) { showFinal(); return; }
+
+    /* Force a reflow so re-adding classes restarts CSS animations. */
+    void stage.offsetWidth;
+
+    at(T.beam,    function () { stage.classList.add("p-beam"); });
+    at(T.name,    function () { stage.classList.add("p-name"); });
+    at(T.ignite,  function () { stage.classList.add("p-ignite"); });
+    at(T.rest,    function () { stage.classList.add("p-rest"); });
+    at(T.contact, function () { stage.classList.add("p-contact"); });
+  }
+
+  /* ---- Replay triggers ---- */
+  replay.addEventListener("click", function (e) {
+    e.stopPropagation();
+    play();
+  });
+  /* Click/tap anywhere on the stage replays — but ignore clicks on
+     real links (contact stays usable) and active text selections. */
+  stage.addEventListener("click", function (e) {
+    if (e.target.closest("a")) return;
+    var sel = window.getSelection && window.getSelection();
+    if (sel && sel.toString().length) return;
+    play();
+  });
+
+  /* ===== Gold dust motes on canvas, rAF-driven ===== */
+  var ctx, motes = [], W = 0, H = 0, dpr = 1, rafId = null;
+
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = canvas.clientWidth;
+    H = canvas.clientHeight;
+    canvas.width  = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function seed() {
+    var count = Math.max(18, Math.min(46, Math.round(W * H / 26000)));
+    motes = [];
+    for (var i = 0; i < count; i++) {
+      motes.push({
+        x: Math.random() * W,
+        y: Math.random() * H,
+        r: 0.4 + Math.random() * 1.4,
+        vx: (Math.random() - 0.5) * 0.10,
+        vy: -0.05 - Math.random() * 0.14,   /* gentle upward drift */
+        a: 0.05 + Math.random() * 0.22,
+        tw: Math.random() * Math.PI * 2      /* twinkle phase */
+      });
+    }
+  }
+
+  function frame() {
+    ctx.clearRect(0, 0, W, H);
+    var cx = W / 2, cy = H * 0.42, diag = Math.max(W, H) * 0.6;
+    for (var i = 0; i < motes.length; i++) {
+      var m = motes[i];
+      m.x += m.vx; m.y += m.vy; m.tw += 0.012;
+      if (m.y < -4) { m.y = H + 4; m.x = Math.random() * W; }
+      if (m.x < -4) m.x = W + 4;
+      if (m.x > W + 4) m.x = -4;
+      var alpha = m.a * (0.55 + 0.45 * Math.sin(m.tw));
+      /* Warm gold motes, brightest near the central beam. */
+      var d = Math.hypot(m.x - cx, m.y - cy) / diag;
+      alpha *= Math.max(0.15, 1 - d);
+      ctx.beginPath();
+      ctx.arc(m.x, m.y, m.r, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(244, 224, 165," + alpha.toFixed(3) + ")";
+      ctx.fill();
+    }
+    rafId = requestAnimationFrame(frame);
+  }
+
+  function startDust() {
+    if (reduceMQ.matches) return;   /* no rAF loop under reduced motion */
+    ctx = canvas.getContext("2d");
+    resize();
+    seed();
+    if (rafId === null) rafId = requestAnimationFrame(frame);
+  }
+  function stopDust() {
+    if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
+  }
+
+  var resizeTO;
+  window.addEventListener("resize", function () {
+    if (reduceMQ.matches) return;
+    clearTimeout(resizeTO);
+    resizeTO = setTimeout(function () { resize(); seed(); }, 150);
+  });
+
+  /* React if the user toggles reduced-motion at runtime. */
+  function onReduceChange() {
+    if (reduceMQ.matches) { stopDust(); showFinal(); }
+    else { startDust(); play(); }
+  }
+  if (reduceMQ.addEventListener) reduceMQ.addEventListener("change", onReduceChange);
+  else if (reduceMQ.addListener) reduceMQ.addListener(onReduceChange);
+
+  /* ---- Boot ---- */
+  if (reduceMQ.matches) { showFinal(); }
+  else { startDust(); play(); }
+})();
+</script>
+</body>
+</html>

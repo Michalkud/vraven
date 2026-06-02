@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>VRAVEN — cave-light positions</title>
+<style>
+  :root{ --bg:#06070a; --panel:#0e0f13; --line:rgba(255,255,255,.08);
+         --ink:#eceef2; --mut:#8a8f9a; --accent:#d7dbe2; }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+  header{ padding:clamp(28px,6vw,60px) clamp(20px,5vw,56px) 6px; max-width:1240px; margin:0 auto; }
+  h1{ font-weight:300; letter-spacing:.14em; font-size:clamp(1.5rem,4vw,2.4rem); margin:0 0 .35em; }
+  h1 b{ font-weight:600; }
+  .sub{ color:var(--mut); font-size:clamp(.85rem,2.2vw,1rem); line-height:1.6; max-width:64ch; margin:0; }
+  .note{ margin:14px 0 0; font-size:.8rem; color:var(--mut); background:var(--panel);
+    border:1px solid var(--line); border-radius:10px; padding:10px 14px; display:inline-block; }
+  .note code{ color:var(--accent); }
+  .grid{ max-width:1240px; margin:24px auto 80px; padding:0 clamp(20px,5vw,56px);
+    display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:clamp(16px,2.5vw,26px); }
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:14px; overflow:hidden;
+    display:flex; flex-direction:column; transition:border-color .25s, transform .25s; }
+  .card:hover{ border-color:rgba(215,219,226,.4); transform:translateY(-3px); }
+  .meta{ padding:15px 17px 9px; }
+  .meta h2{ font-weight:500; font-size:1.05rem; margin:0 0 5px; letter-spacing:.02em;
+    display:flex; gap:9px; align-items:center; flex-wrap:wrap; }
+  .badge{ font-size:.56rem; letter-spacing:.14em; text-transform:uppercase; color:#08121f;
+    background:var(--accent); border-radius:20px; padding:3px 8px; font-weight:700; }
+  .badge.warn{ background:#caa24a; }
+  .meta p{ margin:0; color:var(--mut); font-size:.82rem; line-height:1.55; }
+  .stagebox{ position:relative; margin:6px 13px 13px; border-radius:11px; overflow:hidden;
+    background:#000; border:1px solid var(--line); aspect-ratio:16/10; }
+  .stagebox iframe{ position:absolute; inset:0; width:100%; height:100%; border:0; }
+  .play{ position:absolute; inset:0; display:flex; flex-direction:column; gap:10px; align-items:center;
+    justify-content:center; cursor:pointer; background:radial-gradient(120% 120% at 50% 35%,#101218,#050609); }
+  .ring{ width:52px; height:52px; border-radius:50%; border:1.5px solid var(--accent); display:flex;
+    align-items:center; justify-content:center; color:var(--accent); }
+  .ring svg{ width:19px; height:19px; margin-left:3px; }
+  .play span{ font-size:.7rem; letter-spacing:.18em; text-transform:uppercase; color:var(--mut); }
+  .actions{ padding:0 17px 15px; }
+  .actions a{ font-size:.73rem; letter-spacing:.1em; text-transform:uppercase; text-decoration:none;
+    color:var(--mut); border:1px solid var(--line); padding:7px 12px; border-radius:8px; transition:.2s; }
+  .actions a:hover{ color:var(--accent); border-color:rgba(215,219,226,.4); }
+  footer{ text-align:center; color:var(--mut); font-size:.75rem; padding:0 20px 50px; }
+</style>
+</head>
+<body>
+  <header>
+    <h1><b>VRAVEN</b> · cave-light · text positions</h1>
+    <p class="sub">One light — a volumetric shaft pouring from an opening above into a pool on the cave floor —
+       and six ways to place the name. In each, the letters of <b style="color:var(--ink)">VRAVEN</b>
+       (<i>VRA</i> + <i>VEN</i>) are lit, the rest of the name kept in shadow. Click a card to play it.</p>
+    <p class="note">Contact is placeholder — <code>hello@vraven.com</code> / <code>+420&nbsp;123&nbsp;456&nbsp;789</code>.</p>
+  </header>
+  <main class="grid" id="grid"></main>
+  <footer>Pick a placement and I'll refine it — soften the beam toward your reference photo, adjust size/position, fix alignment, drop in real contact details.</footer>
+<script>
+  const CARDS = [
+    { t:"Off-Axis", b:"pick", f:"off-axis.html",
+      d:"Beam isolated upper-right; the name stacked in shadow lower-left, VRA/VEN glowing. Asymmetric, cinematic, great negative space." },
+    { t:"Monolith", b:"pick", f:"monolith.html",
+      d:"A huge VRAVEN; the shaft crashes onto the letter-tops — brightest at the top edge, fading into shadow below. Monumental." },
+    { t:"Down the Shaft", b:null, f:"shaft-stack.html",
+      d:"VRAVEN stacked vertically, descending the centre of the beam. The light's content is the word itself." },
+    { t:"The Figure", b:null, f:"figure.html",
+      d:"A small VRAVEN stands in the pool at the foot of a towering shaft (like the person in your photo); full name dim beneath." },
+    { t:"Pooled at the Foot", b:null, f:"pool.html",
+      d:"The full name sits low in the pool of light; VRA/VEN lit, the rest dim. Most of the frame is the beam and dark above." },
+    { t:"Caught Mid-Beam", b:"needs fix", f:"mid-beam.html",
+      d:"Name suspended in the shaft. Note: the bright core currently lands on the middle (dim) letters, not on VRA/VEN — fixable." },
+  ];
+  const grid = document.getElementById('grid');
+  const ico = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+  CARDS.forEach(c => {
+    const card = document.createElement('article');
+    card.className = 'card';
+    const badge = c.b ? ' <span class="badge'+(c.b==="needs fix"?" warn":"")+'">'+c.b+'</span>' : '';
+    card.innerHTML =
+      '<div class="meta"><h2>'+c.t+badge+'</h2><p>'+c.d+'</p></div>'+
+      '<div class="stagebox"><div class="play"><div class="ring">'+ico+'</div><span>click to play</span></div></div>'+
+      '<div class="actions"><a href="'+c.f+'" target="_blank" rel="noopener">Open full ↗</a></div>';
+    const box = card.querySelector('.stagebox');
+    card.querySelector('.play').addEventListener('click', () => {
+      const f = document.createElement('iframe'); f.src = c.f + '?t=' + Date.now(); f.title = c.t;
+      box.innerHTML=''; box.appendChild(f);
+    });
+    grid.appendChild(card);
+  });
+</script>
+</body>
+</html>

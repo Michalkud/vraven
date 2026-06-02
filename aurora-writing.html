@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vrastislav Vender</title>
+<style>
+  /* ============================================================
+     VRAVEN — Aurora Writing Beam
+     A light source in the top-right corner draws the letters of
+     VRAVEN with its glowing tip, over a drifting aurora mist.
+     ============================================================ */
+
+  :root{
+    --bg:#03040c;
+    --ink:#dfe9ff;          /* cool luminescent white */
+    --beam:#9fe8ff;         /* cyan beam */
+    --glow:#bdf0ff;
+    --hl:rgba(214,232,255,.62);
+    --dim:rgba(180,200,235,.20);
+  }
+
+  *{ box-sizing:border-box; }
+
+  html,body{ height:100%; margin:0; }
+
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:"Cormorant Garamond", Georgia, "Times New Roman", serif;
+    overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+    cursor:pointer;
+  }
+
+  /* ---------- Aurora mist (drifting colored fog) ---------- */
+  .mist{ position:fixed; inset:-30% ; z-index:0; pointer-events:none; }
+  .mist span{
+    position:absolute; border-radius:50%;
+    filter:blur(70px);
+    mix-blend-mode:screen;
+    opacity:.55;
+    will-change:transform,opacity;
+  }
+  .m1{ width:60vw; height:60vw; left:5%;  top:5%;
+       background:radial-gradient(circle at 50% 50%, #1f5fb0 0%, rgba(31,95,176,0) 70%);
+       animation:drift1 26s ease-in-out infinite; }
+  .m2{ width:55vw; height:55vw; right:0%; top:0%;
+       background:radial-gradient(circle at 50% 50%, #6a2fae 0%, rgba(106,47,174,0) 70%);
+       animation:drift2 32s ease-in-out infinite; }
+  .m3{ width:65vw; height:65vw; left:25%; bottom:0%;
+       background:radial-gradient(circle at 50% 50%, #168f86 0%, rgba(22,143,134,0) 70%);
+       animation:drift3 38s ease-in-out infinite; }
+  .m4{ width:45vw; height:45vw; right:10%; bottom:5%;
+       background:radial-gradient(circle at 50% 50%, #2b4ea8 0%, rgba(43,78,168,0) 70%);
+       animation:drift1 30s ease-in-out infinite reverse; }
+
+  @keyframes drift1{ 0%,100%{ transform:translate(0,0) scale(1); }
+                     50%{ transform:translate(6%,-8%) scale(1.15); } }
+  @keyframes drift2{ 0%,100%{ transform:translate(0,0) scale(1.05); }
+                     50%{ transform:translate(-8%,6%) scale(1.2); } }
+  @keyframes drift3{ 0%,100%{ transform:translate(0,0) scale(1); }
+                     50%{ transform:translate(4%,-6%) scale(1.18); } }
+
+  /* corner light source glow (top-right) */
+  .source{
+    position:fixed; top:-14vmin; right:-14vmin; width:42vmin; height:42vmin;
+    z-index:1; pointer-events:none; border-radius:50%;
+    background:radial-gradient(circle at 50% 50%, rgba(189,240,255,.55) 0%, rgba(159,232,255,.18) 35%, rgba(159,232,255,0) 70%);
+    opacity:0; transition:opacity 1.2s ease;
+    filter:blur(2px);
+  }
+  .writing .source, .done .source{ opacity:1; }
+
+  /* vignette + faint grain to seat everything in the dark */
+  .vignette{ position:fixed; inset:0; z-index:2; pointer-events:none;
+    background:radial-gradient(120% 120% at 50% 45%, rgba(3,4,12,0) 38%, rgba(3,4,12,.85) 100%); }
+
+  /* ---------- Stage ---------- */
+  .stage{
+    position:relative; z-index:3;
+    min-height:100%; display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    gap:clamp(14px,3vh,34px); padding:6vmin;
+    text-align:center;
+  }
+
+  .wordmark{ width:min(86vw, 760px); height:auto; display:block; overflow:visible; }
+
+  /* the written strokes */
+  .glyph{
+    fill:none;
+    stroke:var(--ink);
+    stroke-width:7;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+    filter:url(#glow);
+  }
+  .done .glyphs{ animation:breathe 5.5s ease-in-out infinite; }
+  @keyframes breathe{ 0%,100%{ opacity:.92; } 50%{ opacity:1; } }
+
+  /* the beam + its glowing pen-tip */
+  #beam{ stroke:var(--beam); stroke-width:2.6; stroke-linecap:round;
+         filter:url(#glow); opacity:0; }
+  #head{ fill:#ffffff; filter:url(#glow); opacity:0; }
+  #halo{ fill:var(--glow); opacity:0; }
+  .writing #beam, .writing #head, .writing #halo{ opacity:1; }
+
+  /* ---------- Full name (dim decode line) ---------- */
+  .fullname{
+    font-size:clamp(13px, 2.5vw, 22px);
+    letter-spacing:.42em;
+    text-indent:.42em;
+    color:var(--dim);
+    opacity:0; transform:translateY(8px);
+    transition:opacity 1.1s ease, transform 1.1s ease;
+    font-weight:500;
+  }
+  .fullname .hl{ color:var(--hl); }
+  .done .fullname{ opacity:1; transform:none; }
+
+  /* ---------- Contact ---------- */
+  .contact{
+    display:flex; gap:clamp(14px,4vw,40px); flex-wrap:wrap; justify-content:center;
+    font-family:Georgia, serif; font-size:clamp(12px,1.8vw,15px);
+    letter-spacing:.14em; opacity:0;
+    transition:opacity 1.2s ease .2s;
+  }
+  .done .contact{ opacity:1; }
+  .contact a{
+    color:rgba(200,216,245,.6); text-decoration:none;
+    border-bottom:1px solid rgba(200,216,245,.18);
+    padding-bottom:2px; transition:color .3s, border-color .3s;
+  }
+  .contact a:hover{ color:#eaf2ff; border-color:rgba(234,242,255,.6); }
+
+  /* replay hint */
+  .replay{
+    position:fixed; bottom:20px; left:0; right:0; z-index:4; text-align:center;
+    font-family:Georgia, serif; font-size:11px; letter-spacing:.28em; text-transform:uppercase;
+    color:rgba(200,216,245,.28); opacity:0; transition:opacity 1s ease;
+    pointer-events:none;
+  }
+  .done .replay{ opacity:1; }
+
+  .visually-hidden{ position:absolute!important; width:1px;height:1px;
+    overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+
+  /* ---------- Reduced motion: present the finished state ---------- */
+  @media (prefers-reduced-motion: reduce){
+    .mist span{ animation:none; }
+    .done .glyphs{ animation:none; }
+  }
+</style>
+</head>
+<body>
+  <h1 class="visually-hidden">Vrastislav Vender — VRAVEN</h1>
+
+  <!-- atmosphere -->
+  <div class="mist" aria-hidden="true">
+    <span class="m1"></span><span class="m2"></span><span class="m3"></span><span class="m4"></span>
+  </div>
+  <div class="source" aria-hidden="true"></div>
+  <div class="vignette" aria-hidden="true"></div>
+
+  <main class="stage">
+    <!-- VRAVEN written in light -->
+    <svg class="wordmark" viewBox="0 0 1240 400" role="img" aria-label="VRAVEN">
+      <defs>
+        <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="5" result="b"/>
+          <feMerge>
+            <feMergeNode in="b"/>
+            <feMergeNode in="b"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
+      </defs>
+
+      <!-- the six single-stroke glyphs: V R A V E N -->
+      <g class="glyphs">
+        <path class="glyph" d="M70,90 L130,310 L190,90"/>
+        <path class="glyph" d="M260,310 L260,90 L380,90 L380,200 L260,200 L380,310"/>
+        <path class="glyph" d="M450,310 L510,90 L570,310 M470,236 L550,236"/>
+        <path class="glyph" d="M640,90 L700,310 L760,90"/>
+        <path class="glyph" d="M950,90 L830,90 L830,310 L950,310 M830,200 L935,200"/>
+        <path class="glyph" d="M1020,310 L1020,90 L1140,310 L1140,90"/>
+      </g>
+
+      <!-- the writing beam from the top-right corner + its glowing tip -->
+      <line id="beam" x1="1320" y1="-60" x2="1320" y2="-60"/>
+      <circle id="halo" cx="1320" cy="-60" r="18"/>
+      <circle id="head" cx="1320" cy="-60" r="7"/>
+    </svg>
+
+    <!-- the name it was drawn from -->
+    <p class="fullname" aria-label="Vrastislav Vender">
+      <span class="hl">V</span><span class="hl">R</span><span class="hl">A</span>STISLAV
+      &nbsp;
+      <span class="hl">V</span><span class="hl">E</span><span class="hl">N</span>DER
+    </p>
+
+    <nav class="contact" aria-label="Contact">
+      <a href="mailto:hello@vraven.com">hello@vraven.com</a>
+      <a href="tel:+420123456789">+420&nbsp;123&nbsp;456&nbsp;789</a>
+    </nav>
+  </main>
+
+  <div class="replay" aria-hidden="true">click anywhere to replay</div>
+
+<script>
+(function(){
+  "use strict";
+  const body   = document.body;
+  const svg    = document.querySelector('.wordmark');
+  const glyphs = Array.from(svg.querySelectorAll('.glyph'));
+  const beam   = document.getElementById('beam');
+  const head   = document.getElementById('head');
+  const halo   = document.getElementById('halo');
+  const REDUCE = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // The light's origin (top-right corner of the artboard).
+  const SRC = { x: 1320, y: -60 };
+
+  // Measure every glyph stroke once.
+  const lens = glyphs.map(p => p.getTotalLength());
+  const cum  = []; let acc = 0;
+  for (const l of lens){ cum.push(acc); acc += l; }
+  const TOTAL = acc;
+
+  function hideStrokes(){
+    glyphs.forEach((p,i)=>{
+      p.style.strokeDasharray  = lens[i];
+      p.style.strokeDashoffset = lens[i];
+    });
+  }
+
+  // Reveal the word up to distance d (0..TOTAL) and place the pen-tip.
+  function setProgress(d){
+    for (let i=0;i<glyphs.length;i++){
+      const start = cum[i], end = cum[i] + lens[i];
+      let off;
+      if (d >= end)       off = 0;          // fully drawn
+      else if (d <= start) off = lens[i];   // not started
+      else                off = end - d;    // mid-stroke
+      glyphs[i].style.strokeDashoffset = off;
+    }
+    // pen-tip position = point along the active glyph
+    let i = 0, hp;
+    if (d >= TOTAL){
+      i = glyphs.length - 1; hp = glyphs[i].getPointAtLength(lens[i]);
+    } else {
+      while (i < glyphs.length-1 && d > cum[i] + lens[i]) i++;
+      const local = Math.max(0, Math.min(lens[i], d - cum[i]));
+      hp = glyphs[i].getPointAtLength(local);
+    }
+    beam.setAttribute('x2', hp.x); beam.setAttribute('y2', hp.y);
+    head.setAttribute('cx', hp.x); head.setAttribute('cy', hp.y);
+    halo.setAttribute('cx', hp.x); halo.setAttribute('cy', hp.y);
+  }
+
+  const easeInOutSine = t => -(Math.cos(Math.PI * t) - 1) / 2;
+
+  let rafId = null;
+
+  function finish(){
+    body.classList.remove('writing');
+    body.classList.add('done');
+    // retract the beam back toward its source as it fades
+    beam.style.transition = 'opacity .7s ease';
+    head.style.transition = 'opacity .7s ease';
+    halo.style.transition = 'opacity .7s ease';
+    beam.style.opacity = 0; head.style.opacity = 0; halo.style.opacity = 0;
+  }
+
+  function run(){
+    if (rafId) cancelAnimationFrame(rafId);
+    body.classList.remove('done');
+    // reset inline opacities used during fade-out
+    [beam, head, halo].forEach(el => { el.style.transition = ''; el.style.opacity = ''; });
+    hideStrokes();
+    // park the tip at the source corner
+    beam.setAttribute('x1', SRC.x); beam.setAttribute('y1', SRC.y);
+    setProgress(0);
+    beam.setAttribute('x2', SRC.x); beam.setAttribute('y2', SRC.y);
+    head.setAttribute('cx', SRC.x); head.setAttribute('cy', SRC.y);
+    halo.setAttribute('cx', SRC.x); halo.setAttribute('cy', SRC.y);
+
+    if (REDUCE){ setProgress(TOTAL); finish(); return; }
+
+    body.classList.add('writing');
+    const HOLD = 550, DUR = 3000;
+    let t0 = null;
+    function frame(ts){
+      if (t0 === null) t0 = ts;
+      const e = ts - t0;
+      if (e < HOLD){ rafId = requestAnimationFrame(frame); return; }
+      const p = Math.min(1, (e - HOLD) / DUR);
+      setProgress(easeInOutSine(p) * TOTAL);
+      if (p < 1) rafId = requestAnimationFrame(frame);
+      else finish();
+    }
+    rafId = requestAnimationFrame(frame);
+  }
+
+  // Replay on click / tap / space-enter
+  function replay(){ run(); }
+  document.addEventListener('click', replay);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); replay(); }
+  });
+
+  // SVG fonts/metrics are ready immediately; start after first paint.
+  requestAnimationFrame(run);
+})();
+</script>
+</body>
+</html>

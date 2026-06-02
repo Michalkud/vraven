@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vrastislav Vender</title>
+<style>
+  /* ============================================================
+     "RAVEN" — Gothic-poetic cinematic landing page.
+     A beam of candle-warm amber light out of the dark
+     illuminates exactly six letters spelling VRAVEN.
+     Edgar-Allan-Poe mood: refined serif, drifting feathers,
+     a faint raven silhouette, ember glow.
+     ============================================================ */
+
+  :root {
+    /* Candle-warm amber palette */
+    --ember-core:   #ffd9a0;   /* hottest part of the glow */
+    --ember-warm:   #ffae5a;   /* warm amber */
+    --ember-deep:   #d97a2b;   /* deep ember */
+    --glow:         rgba(255, 168, 76, 0.55);
+    --dim:          rgba(151, 132, 112, 0.20); /* faint, in-shadow letters */
+    --paper:        rgba(232, 220, 205, 0.82); /* contact text */
+    --bg-0:         #050304;   /* near-black, warm */
+    --bg-1:         #0c0805;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body { height: 100%; background: var(--bg-0); overflow: hidden; }
+
+  body {
+    /* Refined serif throughout — Poe-esque, system stack only */
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino,
+                 "URW Palladio L", "Book Antiqua", Georgia, "Times New Roman", serif;
+    color: var(--paper);
+    /* Warm vignette over the darkness */
+    background: radial-gradient(120% 90% at 50% 38%,
+                  var(--bg-1) 0%, var(--bg-0) 55%, #000 100%);
+    min-height: 100svh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    cursor: pointer; /* the whole page replays on click */
+  }
+
+  /* Canvas layers: raven silhouette + drifting feather particles.
+     Both are decorative and sit behind the text. */
+  #raven, #feathers {
+    position: fixed; inset: 0; width: 100%; height: 100%;
+    pointer-events: none;
+  }
+  #raven    { z-index: 0; opacity: 0; transition: opacity 2.4s ease 0.3s; }
+  #feathers { z-index: 1; }
+
+  /* The light beam — a soft cone descending from the upper dark.
+     Pure CSS gradient, animated via transform/opacity/filter only. */
+  .beam {
+    position: fixed;
+    top: -30vh; left: 50%;
+    width: 64vw; height: 130vh;
+    z-index: 2;
+    pointer-events: none;
+    transform: translateX(-50%) rotate(7deg) scaleY(0.18);
+    transform-origin: top center;
+    opacity: 0;
+    background: linear-gradient(180deg,
+                  rgba(255, 190, 120, 0.22) 0%,
+                  rgba(255, 170, 90, 0.11) 30%,
+                  rgba(255, 150, 70, 0.03) 60%,
+                  rgba(0,0,0,0) 85%);
+    filter: blur(24px);
+    mix-blend-mode: screen;
+    will-change: transform, opacity;
+  }
+
+  /* Main stage — name + contact, real selectable text. */
+  .stage {
+    position: relative; z-index: 3;
+    text-align: center;
+    padding: 6vmin;
+    max-width: 100%;
+  }
+
+  /* The name. Words are inline-block units so each word's letters
+     never break apart (preserves the VRA / VEN reading order). */
+  .name {
+    display: flex; flex-wrap: wrap;
+    align-items: baseline; justify-content: center;
+    gap: 0.30em;                 /* space between the two words */
+    line-height: 1.04;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    font-size: clamp(2.1rem, 11vw, 8.5rem);
+  }
+
+  .word { display: inline-block; white-space: nowrap; } /* keep letters together */
+
+  /* Each letter is its own span so we can light or dim it. */
+  .ltr {
+    display: inline-block;
+    color: var(--dim);           /* default: faint, present-in-shadow */
+    opacity: 0;                  /* revealed by the choreography */
+    transform: translateY(0.14em) scale(0.985);
+    transition: opacity 1.2s ease, transform 1.2s cubic-bezier(.2,.7,.2,1),
+                color 1.6s ease, text-shadow 1.6s ease;
+    will-change: opacity, transform;
+  }
+
+  /* Dim letters become visible (but unlit) once the name appears. */
+  .name.appear .ltr { opacity: 1; transform: translateY(0) scale(1); }
+
+  /* The six lit letters of VRAVEN — glowing like embers.
+     Layered text-shadow builds a hot core fading into a warm halo. */
+  .name.ignite .ltr.lit {
+    color: var(--ember-core);
+    text-shadow:
+      0 0 4px  rgba(255, 233, 196, 0.95),
+      0 0 9px  var(--ember-core),
+      0 0 20px var(--glow),
+      0 0 40px var(--glow),
+      0 0 74px rgba(217, 122, 43, 0.42);
+    animation: flicker 5.5s ease-in-out infinite; /* living candle flicker */
+  }
+
+  /* Slow, candle-like flicker of the ember letters (filter only). */
+  @keyframes flicker {
+    0%, 100% { filter: brightness(1.00); }
+    18%      { filter: brightness(1.14); }
+    34%      { filter: brightness(0.92); }
+    52%      { filter: brightness(1.09); }
+    71%      { filter: brightness(0.96); }
+    88%      { filter: brightness(1.06); }
+  }
+
+  /* Contact block — small, refined, fades in last. */
+  .contact {
+    margin-top: clamp(1.6rem, 4vw, 3rem);
+    font-size: clamp(0.82rem, 2.1vw, 1.05rem);
+    letter-spacing: 0.18em; text-transform: uppercase;
+    opacity: 0; transform: translateY(0.6em);
+    transition: opacity 1.6s ease, transform 1.6s ease;
+    display: flex; flex-wrap: wrap;
+    gap: 0.5em 1.8em;
+    align-items: center; justify-content: center;
+    font-style: normal; /* reset <address> */
+  }
+  .contact.show { opacity: 1; transform: translateY(0); }
+
+  .contact a {
+    color: var(--paper); text-decoration: none;
+    border-bottom: 1px solid rgba(255, 168, 76, 0.22);
+    padding-bottom: 0.12em;
+    transition: color 0.5s ease, border-color 0.5s ease, text-shadow 0.5s ease;
+  }
+  .contact a:hover, .contact a:focus-visible {
+    color: var(--ember-core);
+    border-color: var(--ember-warm);
+    text-shadow: 0 0 12px var(--glow);
+    outline: none;
+  }
+  .sep { opacity: 0.4; }
+
+  /* Subtle replay control, lower-right. */
+  .replay {
+    position: fixed;
+    right: clamp(1rem, 3vw, 2.2rem);
+    bottom: clamp(1rem, 3vw, 2.2rem);
+    z-index: 4;
+    background: none;
+    border: 1px solid rgba(255, 168, 76, 0.18);
+    color: rgba(232, 220, 205, 0.55);
+    font: inherit; font-size: 0.7rem;
+    letter-spacing: 0.22em; text-transform: uppercase;
+    padding: 0.6em 1.1em; border-radius: 999px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 1.2s ease, color 0.4s ease, border-color 0.4s ease;
+  }
+  .replay.show { opacity: 1; }
+  .replay:hover, .replay:focus-visible {
+    color: var(--ember-core); border-color: var(--ember-warm); outline: none;
+  }
+
+  /* Accessible-only full name (recoverable by screen readers). */
+  .visually-hidden {
+    position: absolute !important;
+    width: 1px; height: 1px; margin: -1px; padding: 0; border: 0;
+    clip: rect(0 0 0 0); clip-path: inset(50%);
+    overflow: hidden; white-space: nowrap;
+  }
+
+  /* ---- Reduced motion: show the final resting state immediately ---- */
+  @media (prefers-reduced-motion: reduce) {
+    .ltr { opacity: 1; transform: none; transition: none; animation: none; }
+    /* Selector mirrors `.name.ignite .ltr.lit` (same specificity) so the
+       flicker animation is reliably cancelled — and being later in source
+       it also wins the tie for the static resting glow. */
+    .name.ignite .ltr.lit {
+      color: var(--ember-core);
+      text-shadow: 0 0 4px rgba(255,233,196,0.95), 0 0 9px var(--ember-core),
+                   0 0 20px var(--glow), 0 0 40px var(--glow);
+      animation: none;
+    }
+    .contact { opacity: 1; transform: none; transition: none; }
+    .replay  { opacity: 1; transition: none; }
+    .beam    { opacity: 0.5; transform: translateX(-50%) rotate(7deg) scaleY(1); transition: none; }
+    #raven   { opacity: 0.5; transition: none; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- Decorative raven silhouette (canvas, behind everything) -->
+  <canvas id="raven" aria-hidden="true"></canvas>
+
+  <!-- The candle-warm light beam -->
+  <div class="beam" aria-hidden="true"></div>
+
+  <!-- Drifting feather particles -->
+  <canvas id="feathers" aria-hidden="true"></canvas>
+
+  <main class="stage">
+    <!-- Clean, selectable full name for assistive tech. -->
+    <h1 class="visually-hidden">Vrastislav Vender</h1>
+
+    <!-- Visible, selectable name, built letter-by-letter for the reveal.
+         The .lit class marks the six VRAVEN letters. aria-hidden because
+         the h1 above already exposes the name cleanly to screen readers. -->
+    <div class="name" id="name" aria-hidden="true"></div>
+
+    <address class="contact" id="contact">
+      <a href="mailto:hello@vraven.com">hello@vraven.com</a>
+      <span class="sep" aria-hidden="true">&middot;</span>
+      <a href="tel:+420123456789">+420&nbsp;123&nbsp;456&nbsp;789</a>
+    </address>
+  </main>
+
+  <button class="replay" id="replay" type="button" aria-label="Replay the introduction">
+    Replay
+  </button>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ============================================================
+     1) BUILD THE NAME, letter by letter.
+        VRASTISLAV -> lit: V R A   (indices 0,1,2); dim S T I S L A V
+        VENDER     -> lit: V E N   (indices 0,1,2); dim D E R
+        Lit, left-to-right = V R A V E N = VRAVEN
+     ============================================================ */
+  var WORDS = [
+    { text: "VRASTISLAV", litCount: 3 },
+    { text: "VENDER",     litCount: 3 }
+  ];
+
+  var nameEl = document.getElementById("name");
+  WORDS.forEach(function (word) {
+    var wordEl = document.createElement("span");
+    wordEl.className = "word";
+    for (var i = 0; i < word.text.length; i++) {
+      var span = document.createElement("span");
+      span.className = "ltr" + (i < word.litCount ? " lit" : "");
+      span.textContent = word.text[i];
+      wordEl.appendChild(span);
+    }
+    nameEl.appendChild(wordEl);
+    // The two .word units are separate flex items, so selecting the
+    // visible name yields whitespace-separated "VRASTISLAV VENDER"
+    // (not run together) — verified — while the hidden <h1> still
+    // exposes the clean full name to screen readers.
+  });
+
+  var beamEl    = document.querySelector(".beam");
+  var ravenEl   = document.getElementById("raven");
+  var contactEl = document.getElementById("contact");
+  var replayEl  = document.getElementById("replay");
+
+  var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ============================================================
+     2) CHOREOGRAPHY
+        black -> beam arrives -> name appears dim -> VRAVEN ignites
+        (beam brightens on the SAME beat) -> resting -> contact + replay
+     ============================================================ */
+  var timers = [];
+  function clearTimers() { timers.forEach(clearTimeout); timers = []; }
+  function at(ms, fn) { timers.push(setTimeout(fn, ms)); }
+
+  function play() {
+    clearTimers();
+
+    // reset to black
+    nameEl.classList.remove("appear", "ignite");
+    contactEl.classList.remove("show");
+    replayEl.classList.remove("show");
+    beamEl.style.transition = "none";
+    beamEl.style.opacity = "0";
+    beamEl.style.transform = "translateX(-50%) rotate(7deg) scaleY(0.18)";
+    ravenEl.style.opacity = "0";
+    void beamEl.offsetWidth; // force reflow so the reset takes hold
+
+    if (reduce) { restingState(); return; }
+
+    // hold on black, then the beam arrives from the dark
+    at(500, function () {
+      beamEl.style.transition = "opacity 1.6s ease, transform 2.2s cubic-bezier(.2,.7,.2,1)";
+      beamEl.style.opacity = "1";
+      beamEl.style.transform = "translateX(-50%) rotate(7deg) scaleY(1)";
+    });
+
+    // the faint raven emerges in the gloom
+    at(900, function () { ravenEl.style.opacity = "0.6"; });
+
+    // whole name appears, faint / dim
+    at(1700, function () { nameEl.classList.add("appear"); });
+
+    // VRAVEN ignites with a warm bloom; the beam brightens on the same
+    // beat so the light "lands" precisely as the embers catch.
+    at(3000, function () {
+      nameEl.classList.add("ignite");
+      beamEl.style.transition = "opacity 1.1s ease, transform 2.2s ease";
+      beamEl.style.opacity = "0.8";
+    });
+
+    // beam settles back to a soft resting glow
+    at(4400, function () { beamEl.style.opacity = "0.62"; });
+
+    // contact + replay fade in last
+    at(4400, function () { contactEl.classList.add("show"); });
+    at(5000, function () { replayEl.classList.add("show"); });
+  }
+
+  // Final resting state with no animation (reduced motion path).
+  function restingState() {
+    nameEl.classList.add("appear", "ignite");
+    contactEl.classList.add("show");
+    replayEl.classList.add("show");
+    beamEl.style.opacity = "0.55";
+    beamEl.style.transform = "translateX(-50%) rotate(7deg) scaleY(1)";
+    ravenEl.style.opacity = "0.6";
+  }
+
+  /* ============================================================
+     3) RAVEN SILHOUETTE — a faint, spread-wing shape, drawn once
+        per resize. Reads as a shadow with a warm, beam-lit rim.
+     ============================================================ */
+  var rctx = ravenEl.getContext("2d");
+
+  function drawRaven() {
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var w = window.innerWidth, h = window.innerHeight;
+    ravenEl.width = w * dpr; ravenEl.height = h * dpr;
+    rctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    rctx.clearRect(0, 0, w, h);
+
+    var cx = w * 0.5, cy = h * 0.74;
+    var s = Math.min(w, h) * 0.55;
+
+    rctx.save();
+    rctx.translate(cx, cy);
+
+    // Filled with a faint radial amber-into-black gradient.
+    var grad = rctx.createRadialGradient(0, -s * 0.1, s * 0.05, 0, 0, s * 0.9);
+    grad.addColorStop(0,   "rgba(40, 26, 14, 0.55)");
+    grad.addColorStop(0.5, "rgba(20, 12, 6, 0.30)");
+    grad.addColorStop(1,   "rgba(0, 0, 0, 0)");
+    rctx.fillStyle = grad;
+
+    rctx.beginPath();
+    rctx.moveTo(0, -s * 0.22);                                             // body top
+    rctx.bezierCurveTo(s*0.20, -s*0.45, s*0.62, -s*0.40, s*0.95, -s*0.10); // right wing up/out
+    rctx.bezierCurveTo(s*0.66, -s*0.06, s*0.42, -s*0.02, s*0.30,  s*0.10); // wing underside
+    rctx.bezierCurveTo(s*0.20,  s*0.30, s*0.10,  s*0.45, 0,        s*0.55); // body to tail
+    rctx.bezierCurveTo(-s*0.10, s*0.45, -s*0.20, s*0.30, -s*0.30,  s*0.10); // mirror tail
+    rctx.bezierCurveTo(-s*0.42,-s*0.02, -s*0.66,-s*0.06, -s*0.95, -s*0.10); // left wing underside
+    rctx.bezierCurveTo(-s*0.62,-s*0.40, -s*0.20,-s*0.45, 0,       -s*0.22); // left wing up/out
+    rctx.closePath();
+    rctx.fill();
+
+    // faint warm rim along the top edge, as if lit by the beam
+    rctx.strokeStyle = "rgba(255, 168, 76, 0.10)";
+    rctx.lineWidth = 1.4;
+    rctx.stroke();
+
+    rctx.restore();
+  }
+
+  /* ============================================================
+     4) FEATHER / DUST PARTICLES — slow drift downward.
+        requestAnimationFrame loop; canvas only (no layout work).
+     ============================================================ */
+  var fcanvas = document.getElementById("feathers");
+  var fctx = fcanvas.getContext("2d");
+  var particles = [];
+  var fw = 0, fh = 0, fdpr = 1;
+
+  function sizeFeathers() {
+    fdpr = Math.min(window.devicePixelRatio || 1, 2);
+    fw = window.innerWidth; fh = window.innerHeight;
+    fcanvas.width = fw * fdpr; fcanvas.height = fh * fdpr;
+    fctx.setTransform(fdpr, 0, 0, fdpr, 0, 0);
+
+    // Particle count scales with screen size (kept modest for 60fps).
+    var count = Math.round(Math.min(46, (fw * fh) / 26000));
+    particles = [];
+    for (var i = 0; i < count; i++) particles.push(makeParticle(true));
+  }
+
+  function makeParticle(initial) {
+    return {
+      x: Math.random() * fw,
+      y: initial ? Math.random() * fh : -10,
+      r: 0.6 + Math.random() * 1.8,        // size
+      vy: 0.15 + Math.random() * 0.5,      // fall speed (slow)
+      sway: 0.4 + Math.random() * 1.1,     // horizontal sway amplitude
+      phase: Math.random() * Math.PI * 2,  // sway phase
+      drift: (Math.random() - 0.5) * 0.15, // slight lateral drift
+      a: 0.12 + Math.random() * 0.4        // alpha
+    };
+  }
+
+  function drawParticle(p, x) {
+    fctx.beginPath();
+    fctx.fillStyle = "rgba(255, 186, 120, " + p.a + ")";
+    fctx.shadowBlur = 6;
+    fctx.shadowColor = "rgba(255, 168, 76, 0.5)";
+    fctx.ellipse(x, p.y, p.r * 0.6, p.r * 1.6, p.phase, 0, Math.PI * 2);
+    fctx.fill();
+  }
+
+  // Draw a single static frame of motes (used under reduced motion,
+  // including after a resize so the canvas is never left blank).
+  function drawStaticFeathers() {
+    fctx.clearRect(0, 0, fw, fh);
+    for (var i = 0; i < particles.length; i++) {
+      drawParticle(particles[i], particles[i].x);
+    }
+    fctx.shadowBlur = 0;
+  }
+
+  var last = performance.now();
+  var rafId = null;
+
+  function tick(now) {
+    var dt = Math.min(40, now - last) / 16.6667; // normalize to ~frames
+    last = now;
+    fctx.clearRect(0, 0, fw, fh);
+
+    for (var i = 0; i < particles.length; i++) {
+      var p = particles[i];
+      p.y += p.vy * dt;
+      p.phase += 0.012 * dt;
+      var x = p.x + Math.sin(p.phase) * p.sway * 6 + p.drift * p.y * 0.1;
+
+      if (p.y > fh + 12) {                  // recycle past the bottom
+        particles[i] = makeParticle(false);
+        particles[i].x = Math.random() * fw;
+        continue;
+      }
+      drawParticle(p, x);
+    }
+    fctx.shadowBlur = 0;
+    rafId = requestAnimationFrame(tick);
+  }
+
+  /* ============================================================
+     5) WIRING — resize, replay controls, kickoff.
+     ============================================================ */
+  function resize() {
+    drawRaven();
+    sizeFeathers();
+    // Under reduced motion the rAF loop never runs, so the resized
+    // (and cleared) feather canvas must be repainted statically here.
+    if (reduce) drawStaticFeathers();
+  }
+  window.addEventListener("resize", resize);
+  resize();
+
+  if (!reduce) {
+    last = performance.now();
+    rafId = requestAnimationFrame(tick);
+  } else {
+    // draw a single static frame of motes for atmosphere
+    drawStaticFeathers();
+  }
+
+  // Replay via the explicit control...
+  replayEl.addEventListener("click", function (e) { e.stopPropagation(); play(); });
+
+  // ...or by clicking/tapping anywhere (but not on a link or the button).
+  document.body.addEventListener("click", function (e) {
+    if (e.target.closest("a") || e.target.closest("#replay")) return;
+    play();
+  });
+
+  // Kickoff
+  play();
+})();
+</script>
+</body>
+</html>

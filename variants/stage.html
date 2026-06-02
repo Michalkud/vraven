@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vrastislav Vender</title>
+<style>
+  /* =========================================================================
+     STAGE LIGHT — cinematic landing page for "VRASTISLAV VENDER"
+     A hard theatrical spotlight irises out of darkness and ignites the six
+     letters that spell VRAVEN (first three of each word: V R A | V E N).
+     Every other letter stays present but dim — actors waiting in the wings.
+
+     Performance contract: we animate ONLY transform / opacity / filter.
+     The warm "ignite" bloom is a pre-baked glow LAYER crossfaded via opacity
+     — never an animated text-shadow (which is not GPU-composited).
+
+     Choreography is one re-invocable JS timeline that toggles a single .lit
+     class; the staged FEEL (beam irises -> faint name -> VRAVEN ignites ->
+     contact last) comes from layered CSS transition-DELAYS under that flip.
+     ========================================================================= */
+
+  :root {
+    --tungsten:      #ffd9a0;   /* warm spotlight core             */
+    --tungsten-hot:  #fff3df;   /* hottest center of the beam      */
+    --tungsten-deep: #ff9d4d;   /* amber falloff of the cone       */
+    --dim:           #6a5a45;   /* letters resting in shadow (warm)*/
+    --stage:         #050403;   /* the black stage                 */
+    --dust:          #ffcf95;   /* floating dust motes             */
+
+    /* Choreography timing — single source of truth for the staging. */
+    --t-beam:    0ms;     /* spotlight irises on first            */
+    --t-dim:     450ms;   /* faint name materialises              */
+    --t-ignite:  1050ms;  /* VRAVEN blooms warm                   */
+    --t-contact: 1850ms;  /* contact details fade in last         */
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body { height: 100%; }
+
+  body {
+    color: var(--dim);
+    font-family: "Helvetica Neue", Helvetica, Arial,
+                 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    overflow: hidden;
+    /* subtle floor vignette so the dark stage has depth */
+    background:
+      radial-gradient(120% 80% at 50% 120%, #161210 0%, #050403 55%, #020201 100%),
+      var(--stage);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* The stage fills the viewport; everything is centred on it. */
+  .stage {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  /* --- Dust canvas: motes drifting inside the light cone ------------------ */
+  #dust {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  /* --- The spotlight cone & floor pool ------------------------------------ *
+   * A soft conical wash from above plus a bright elliptical pool on the
+   * "floor" beneath the name. Both iris/scale in via the .lit timeline.     */
+  .spot {
+    position: fixed;
+    left: 50%;
+    top: -8%;
+    width: clamp(420px, 70vw, 1100px);
+    height: 150vh;
+    transform: translateX(-50%) scaleX(0.04);   /* starts as a thin slit   */
+    transform-origin: 50% 0%;
+    background:
+      radial-gradient(60% 70% at 50% 18%,
+        rgba(255, 226, 178, 0.32) 0%,
+        rgba(255, 196, 120, 0.13) 38%,
+        rgba(255, 170, 90, 0.045) 60%,
+        transparent 72%);
+    filter: blur(8px);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 1;
+    mix-blend-mode: screen;
+    /* iris on: the slit widens into a full cone and warms up */
+    transition:
+      transform 0.95s cubic-bezier(0.16, 0.84, 0.30, 1) var(--t-beam),
+      opacity   0.70s ease                               var(--t-beam);
+    will-change: transform, opacity;
+  }
+
+  /* Circular pool of light on the floor, just under the name. */
+  .pool {
+    position: fixed;
+    left: 50%;
+    bottom: 16%;
+    width: clamp(300px, 52vw, 760px);
+    height: clamp(70px, 11vw, 150px);
+    transform: translateX(-50%) scale(0.2);
+    border-radius: 50%;
+    background:
+      radial-gradient(50% 50% at 50% 50%,
+        rgba(255, 213, 158, 0.55) 0%,
+        rgba(255, 176, 102, 0.18) 45%,
+        transparent 72%);
+    filter: blur(10px);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 0;
+    mix-blend-mode: screen;
+    transition:
+      transform 1.0s cubic-bezier(0.16, 0.84, 0.30, 1) var(--t-beam),
+      opacity   0.85s ease                             var(--t-beam);
+    will-change: transform, opacity;
+  }
+
+  /* --- The name ---------------------------------------------------------- */
+  .name {
+    position: relative;
+    z-index: 3;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: clamp(0.35em, 2vw, 0.7em);             /* space between the words  */
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    font-size: clamp(2.1rem, 11vw, 8.2rem);
+    line-height: 1;
+    text-align: center;
+    user-select: text;                          /* name stays selectable    */
+  }
+
+  /* Each WORD is a nowrap container so VRASTISLAV / VENDER never break
+     mid-word; the two words may stack on narrow screens but each stays
+     intact, so the VRA / VEN reading is never split. */
+  .word {
+    display: inline-flex;
+    white-space: nowrap;
+  }
+
+  /* Every letter is the SOLE child of its word, so :nth-child(-n+3)
+     positionally selects the first three letters of each word — V,R,A and
+     V,E,N — with zero hand-counting and no fragile per-letter classes. */
+  .letter {
+    position: relative;
+    display: inline-block;
+    color: var(--dim);
+    /* dim letters start invisible; the faint name "appears" early in the
+       timeline by fading these up to their resting dim opacity.           */
+    opacity: 0;
+    transform: translateY(0.10em);
+    transition:
+      opacity   0.95s ease var(--t-dim),
+      transform 0.95s ease var(--t-dim),
+      color     0.80s ease var(--t-ignite);
+    will-change: opacity, transform;
+  }
+
+  /* The pre-baked GLOW layer for a lit letter: a duplicate glyph rendered
+     in front via ::before, carrying the warm tungsten bloom as a STATIC
+     text-shadow. We ignite by crossfading its opacity (composited), never
+     by animating the shadow itself. */
+  .word .letter:nth-child(-n+3)::before {
+    content: attr(data-ch);
+    position: absolute;
+    left: 0;
+    top: 0;
+    color: var(--tungsten-hot);
+    opacity: 0;                                  /* dark until ignition     */
+    transition: opacity 1.15s ease var(--t-ignite);
+    text-shadow:
+      0 0 0.06em var(--tungsten-hot),
+      0 0 0.22em var(--tungsten),
+      0 0 0.50em var(--tungsten),
+      0 0 1.10em var(--tungsten-deep),
+      0 0 2.20em var(--tungsten-deep);
+    pointer-events: none;
+  }
+
+  /* --- Long theatrical shadow cast by the lit letters -------------------- *
+   * A second ::after duplicate, skewed and pushed down/away, tinted dark,
+   * faded in with the ignition to read as a cast shadow on the floor.      */
+  .word .letter:nth-child(-n+3)::after {
+    content: attr(data-ch);
+    position: absolute;
+    left: 0;
+    top: 0;
+    color: #000;
+    opacity: 0;
+    transform: skewX(-32deg) scaleY(1.5) translateY(0.30em);
+    transform-origin: bottom left;
+    filter: blur(3px);
+    transition: opacity 1.15s ease var(--t-ignite);
+    pointer-events: none;
+    z-index: -1;                                 /* behind its own glyph    */
+  }
+
+  /* ===== LIT (active) STATE — applied by JS, or immediately for
+     prefers-reduced-motion. Drives the whole resting look. ============== */
+
+  /* Beam fully arrived: cone & pool iris open and glow. */
+  .stage.lit .spot {
+    opacity: 1;
+    transform: translateX(-50%) scaleX(1);
+  }
+  .stage.lit .pool {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+
+  /* All letters present (dim ones at low, but legible, opacity). */
+  .stage.lit .letter {
+    opacity: 0.22;                               /* dim — present in shadow */
+    transform: translateY(0);
+  }
+
+  /* The six VRAVEN letters ignite: hot base colour + glow + cast shadow. */
+  .stage.lit .word .letter:nth-child(-n+3) {
+    color: var(--tungsten-hot);
+    opacity: 1;
+  }
+  .stage.lit .word .letter:nth-child(-n+3)::before { opacity: 1; }
+  .stage.lit .word .letter:nth-child(-n+3)::after  { opacity: 0.5; }
+
+  /* --- Contact: small, refined, fades in last --------------------------- */
+  .contact {
+    position: relative;
+    z-index: 3;
+    margin-top: clamp(1.4rem, 4vh, 2.6rem);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: clamp(0.8rem, 4vw, 2.2rem);
+    font-size: clamp(0.72rem, 1.6vw, 0.95rem);
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    opacity: 0;
+    transform: translateY(8px);
+    transition:
+      opacity   1.1s ease var(--t-contact),
+      transform 1.1s ease var(--t-contact);
+  }
+  .stage.lit .contact { opacity: 1; transform: translateY(0); }
+
+  .contact a {
+    color: #c9a878;
+    text-decoration: none;
+    transition: color 0.4s ease, text-shadow 0.4s ease;
+  }
+  .contact a:hover,
+  .contact a:focus-visible {
+    color: var(--tungsten-hot);
+    text-shadow: 0 0 0.6em var(--tungsten);
+    outline: none;
+  }
+  .contact .sep { opacity: 0.4; }
+
+  /* --- Subtle replay control -------------------------------------------- */
+  .replay {
+    position: fixed;
+    right: clamp(0.9rem, 2.5vw, 1.8rem);
+    bottom: clamp(0.9rem, 2.5vw, 1.8rem);
+    z-index: 5;
+    width: 2.6rem;
+    height: 2.6rem;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 213, 158, 0.28);
+    background: rgba(20, 16, 12, 0.4);
+    color: #c9a878;
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.6s ease var(--t-contact),
+                color 0.3s ease, border-color 0.3s ease;
+    display: grid;
+    place-items: center;
+  }
+  .stage.lit .replay { opacity: 0.55; }
+  .replay:hover,
+  .replay:focus-visible {
+    color: var(--tungsten-hot);
+    border-color: rgba(255, 213, 158, 0.7);
+    opacity: 1;
+    outline: none;
+  }
+
+  /* =========================================================================
+     REDUCED MOTION — show the final resting state immediately, no timeline.
+     Disable every transition so nothing animates; the JS also skips the
+     choreography and never starts the rAF dust loop.
+     ========================================================================= */
+  @media (prefers-reduced-motion: reduce) {
+    .letter, .letter::before, .letter::after,
+    .spot, .pool, .contact, .replay {
+      transition: none !important;
+    }
+  }
+</style>
+</head>
+<body>
+  <!-- The whole stage is the click/tap target for replay. -->
+  <main class="stage" id="stage">
+
+    <!-- Spotlight cone + floor pool (pure light, behind the name). -->
+    <div class="spot" aria-hidden="true"></div>
+    <div class="pool" aria-hidden="true"></div>
+
+    <!-- Floating dust inside the cone. -->
+    <canvas id="dust" aria-hidden="true"></canvas>
+
+    <!--
+      The name. aria-label gives screen readers the clean spoken name,
+      while the visible per-letter spans remain real, selectable text.
+      Each word is a .word container whose ONLY children are .letter spans
+      so :nth-child(-n+3) reliably lights the first three of each:
+        VRASTISLAV -> V R A lit;  S T I S L A V dim
+        VENDER     -> V E N lit;  D E R       dim
+      Lit, left-to-right = V R A V E N = VRAVEN.
+    -->
+    <h1 class="name" aria-label="Vrastislav Vender">
+      <span class="word">
+        <span class="letter" data-ch="V">V</span><span class="letter" data-ch="R">R</span><span class="letter" data-ch="A">A</span><span class="letter" data-ch="S">S</span><span class="letter" data-ch="T">T</span><span class="letter" data-ch="I">I</span><span class="letter" data-ch="S">S</span><span class="letter" data-ch="L">L</span><span class="letter" data-ch="A">A</span><span class="letter" data-ch="V">V</span>
+      </span>
+      <span class="word">
+        <span class="letter" data-ch="V">V</span><span class="letter" data-ch="E">E</span><span class="letter" data-ch="N">N</span><span class="letter" data-ch="D">D</span><span class="letter" data-ch="E">E</span><span class="letter" data-ch="R">R</span>
+      </span>
+    </h1>
+
+    <!-- Contact: real links, fades in last. tel: strips the display spaces. -->
+    <nav class="contact" aria-label="Contact">
+      <a href="mailto:hello@vraven.com">hello@vraven.com</a>
+      <span class="sep" aria-hidden="true">&middot;</span>
+      <a href="tel:+420123456789">+420&nbsp;123&nbsp;456&nbsp;789</a>
+    </nav>
+
+    <!-- Subtle replay control (also: click anywhere on the stage). -->
+    <button class="replay" id="replay" type="button"
+            aria-label="Replay animation" title="Replay">&#x21bb;</button>
+  </main>
+
+<script>
+(function () {
+  "use strict";
+
+  var stage  = document.getElementById("stage");
+  var replay = document.getElementById("replay");
+  var canvas = document.getElementById("dust");
+  var ctx    = canvas.getContext("2d");
+
+  var reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+  /* ---- Timeline ------------------------------------------------------- *
+   * A single re-invocable choreography. We toggle the .lit class to drive
+   * every CSS transition; the staged feel (spotlight irises -> faint name
+   * -> VRAVEN ignites -> contact last) is carried by the transition-delays
+   * declared in CSS (--t-beam / --t-dim / --t-ignite / --t-contact). To
+   * restage we remove .lit, force a reflow, then re-add after a hold.     */
+  var holdTimer = null;
+
+  function play() {
+    if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+
+    if (reduce.matches) {
+      // Reduced motion: jump straight to the final resting state.
+      stage.classList.add("lit");
+      return;
+    }
+
+    // Restage: back to black so the beam can arrive again.
+    stage.classList.remove("lit");
+
+    // Force a reflow so removing then re-adding .lit re-triggers transitions.
+    void stage.offsetWidth;
+
+    // Hold on black briefly, then light the stage. The staggered reveal
+    // unfolds from the CSS transition-delays under this single class flip.
+    holdTimer = setTimeout(function () {
+      stage.classList.add("lit");
+      holdTimer = null;
+    }, 650);
+  }
+
+  // Replay triggers: the subtle control, or a click/tap anywhere on stage.
+  replay.addEventListener("click", function (e) {
+    e.stopPropagation();
+    play();
+  });
+
+  // Click/tap the stage replays — but never hijack a contact-link click
+  // or an in-progress text selection of the (selectable) name.
+  stage.addEventListener("click", function (e) {
+    if (e.target.closest("a")) return;
+    var sel = window.getSelection();
+    if (sel && sel.toString().length) return;
+    play();
+  });
+  // Keyboard: Enter/Space on the focused replay button already fires click.
+
+  /* ---- Dust motes ----------------------------------------------------- *
+   * Soft warm particles drifting upward inside the light cone. Pure canvas
+   * + requestAnimationFrame; never started under reduced motion.          */
+  var motes = [];
+  var raf = null;
+  var W = 0, H = 0, DPR = 1;
+
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width  = Math.floor(W * DPR);
+    canvas.height = Math.floor(H * DPR);
+    canvas.style.width  = W + "px";
+    canvas.style.height = H + "px";
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    seedMotes();
+  }
+
+  function seedMotes() {
+    // Density scales gently with viewport area; capped at 70 for perf.
+    var count = Math.min(70, Math.round((W * H) / 26000));
+    motes = [];
+    for (var i = 0; i < count; i++) motes.push(makeMote(true));
+  }
+
+  function makeMote(initial) {
+    // Bias motes toward the central cone where the light lives.
+    var coneHalf = W * 0.28;
+    return {
+      x: W / 2 + (Math.random() * 2 - 1) * coneHalf,
+      y: initial ? Math.random() * H : H + Math.random() * 40,
+      r: Math.random() * 1.6 + 0.4,
+      vy: -(Math.random() * 0.22 + 0.05),       // slow drift upward
+      vx: (Math.random() * 2 - 1) * 0.12,        // gentle sideways sway
+      a: Math.random() * 0.45 + 0.1,             // base alpha
+      tw: Math.random() * Math.PI * 2            // twinkle phase
+    };
+  }
+
+  function tick() {
+    ctx.clearRect(0, 0, W, H);
+    ctx.globalCompositeOperation = "lighter";    // additive, glowy dust
+
+    for (var i = 0; i < motes.length; i++) {
+      var m = motes[i];
+      m.x += m.vx;
+      m.y += m.vy;
+      m.tw += 0.02;
+
+      // Recycle motes that drift off the top.
+      if (m.y < -10) { motes[i] = makeMote(false); continue; }
+
+      // Fade motes by horizontal distance from the cone centre so they
+      // appear to live inside the beam.
+      var dist = Math.abs(m.x - W / 2) / (W * 0.32);
+      var cone = Math.max(0, 1 - dist);
+      var twinkle = 0.55 + 0.45 * Math.sin(m.tw);
+      var alpha = m.a * cone * twinkle;
+      if (alpha <= 0.01) continue;
+
+      ctx.beginPath();
+      ctx.fillStyle = "rgba(255, 207, 149, " + alpha.toFixed(3) + ")";
+      ctx.arc(m.x, m.y, m.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    raf = requestAnimationFrame(tick);
+  }
+
+  function startDust() {
+    if (raf || reduce.matches) return;
+    raf = requestAnimationFrame(tick);
+  }
+  function stopDust() {
+    if (raf) { cancelAnimationFrame(raf); raf = null; }
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+  }
+
+  window.addEventListener("resize", resize);
+
+  /* ---- Boot ----------------------------------------------------------- */
+  function boot() {
+    resize();
+    if (reduce.matches) {
+      stage.classList.add("lit");   // final resting state, no animation
+      stopDust();
+    } else {
+      startDust();
+      play();
+    }
+  }
+
+  // React if the user toggles reduced-motion at runtime.
+  reduce.addEventListener("change", function () {
+    if (reduce.matches) {
+      if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+      stopDust();
+      stage.classList.add("lit");
+    } else {
+      startDust();
+      play();
+    }
+  });
+
+  boot();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vrastislav Vender</title>
+<style>
+  /* ============================================================
+     VRASTISLAV VENDER — Art direction: "LIGHTHOUSE SWEEP"
+     A rotating beam from a single point source sweeps across the
+     name in a slow, hypnotic rhythm. Each pass washes cold
+     sea-white light over the letters; the VRAVEN letters
+     (V R A / V E N — first three of each word) CATCH and HOLD
+     the glow after a pass, while the rest fall back to shadow.
+
+     Build: a <canvas> rotating light cone + drifting dust behind a
+     DOM name overlay. A shared rAF clock drives the beam angle; each
+     letter measures its own angle from the source and brightens as
+     the cone sweeps over it. VRAVEN latches; others decay.
+     ============================================================ */
+
+  :root {
+    --sea:   #eaf4ff;   /* cold sea-white for lit letters         */
+    --sea-2: #bcd8f6;   /* cooler secondary white                 */
+    --dim:   #1d2733;   /* faint blue-shadow tone for dim letters  */
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+    background: #04070d;          /* near-black, faint blue cast */
+    overflow: hidden;
+    color: #fff;
+  }
+
+  body {
+    font-family: Georgia, 'Times New Roman', 'Hoefler Text', serif;
+    -webkit-font-smoothing: antialiased;
+    cursor: pointer;              /* whole page replays on click/tap */
+  }
+
+  /* Canvas paints the rotating beam cone + dust behind the text. */
+  #beam {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    display: block;
+  }
+
+  /* Vignette deepens the corners; cool tint reads as cold sea night. */
+  .vignette {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background: radial-gradient(
+      ellipse 95% 75% at 50% 46%,
+      transparent 32%,
+      rgba(2,5,11,0.55) 76%,
+      rgba(2,5,11,0.97) 100%
+    );
+  }
+
+  /* ---- Stage: name + contact, centered over the beam ---- */
+  .stage {
+    position: fixed;
+    inset: 0;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 6vmin;
+  }
+
+  .name {
+    font-weight: 400;
+    line-height: 1.04;
+    font-size: clamp(2.1rem, 9vw, 7rem);   /* fluid: mobile -> desktop */
+    letter-spacing: 0.05em;
+    display: flex;
+    flex-wrap: wrap;                        /* words wrap as whole blocks */
+    align-items: baseline;
+    justify-content: center;
+    gap: 0.30em;
+  }
+
+  /* Each WORD is a nowrap unit, so VRA never detaches from STISLAV. */
+  .word {
+    white-space: nowrap;
+    display: inline-block;
+  }
+
+  /* Per-letter span. Hidden until the intro reveals the dim name.
+     Live brightness is driven from JS via the --glow custom property
+     (0 = dim/resting, 1 = fully washed by the beam). */
+  .ltr {
+    --glow: 0;
+    display: inline-block;
+    opacity: 0;
+    transform: translateY(0.05em);
+    /* Brisk fade to dim presence so each letter is fully visible by the time
+       the establishing sweep washes it (the ignite then reads clearly). */
+    transition: opacity 0.55s ease, transform 0.55s ease;
+    will-change: opacity, transform, color, text-shadow;
+  }
+
+  /* Once the intro has shown the name, letters are present. */
+  .ltr.shown { opacity: 1; transform: translateY(0); }
+
+  /* DIM letters: faint base, lift toward cold white as the beam washes
+     over them (--glow), but always fall back to shadow afterward. */
+  .ltr.dim {
+    color: color-mix(in srgb, var(--sea-2) calc(var(--glow) * 100%), var(--dim));
+    text-shadow:
+      0 0 calc(8px * var(--glow))  rgba(200,225,255, calc(0.55 * var(--glow))),
+      0 0 calc(24px * var(--glow)) rgba(160,200,255, calc(0.35 * var(--glow)));
+  }
+
+  /* LIT letters (V R A V E N): same wash response, but they HOLD a
+     cold resting glow even at --glow 0, and bloom brighter on a pass. */
+  .ltr.lit {
+    color: color-mix(in srgb, #ffffff calc(var(--glow) * 100%), var(--sea));
+    text-shadow:
+      0 0 calc(6px  + 6px  * var(--glow)) rgba(225,240,255, calc(0.85 + 0.15 * var(--glow))),
+      0 0 calc(18px + 14px * var(--glow)) rgba(180,215,255, calc(0.55 + 0.25 * var(--glow))),
+      0 0 calc(40px + 28px * var(--glow)) rgba(140,190,255, calc(0.35 + 0.25 * var(--glow))),
+      0 0 calc(78px + 30px * var(--glow)) rgba(110,170,255, calc(0.22 + 0.18 * var(--glow)));
+  }
+
+  /* Contact — small, refined; fades in only after the reveal. */
+  .contact {
+    margin-top: clamp(2rem, 6vh, 3.5rem);
+    font-size: clamp(0.78rem, 2.4vw, 0.95rem);
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: rgba(225,240,255,0.55);
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 1.4s ease, transform 1.4s ease;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6em 1.6em;
+    align-items: center;
+    justify-content: center;
+  }
+  .stage.reveal .contact { opacity: 1; transform: translateY(0); }
+
+  .contact a {
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.4s ease, text-shadow 0.4s ease;
+  }
+  .contact a:hover,
+  .contact a:focus-visible {
+    color: var(--sea);
+    text-shadow: 0 0 12px rgba(170,210,255,0.7);
+    outline: none;
+  }
+  .contact .sep { opacity: 0.4; }
+
+  /* Subtle replay control, lower still; appears with the contact info. */
+  .replay {
+    position: fixed;
+    bottom: clamp(1rem, 3vh, 1.8rem);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 3;
+    font-family: inherit;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.62rem;
+    letter-spacing: 0.34em;
+    text-transform: uppercase;
+    color: rgba(225,240,255,0.24);
+    opacity: 0;
+    transition: opacity 1.6s ease, color 0.4s ease;
+    pointer-events: none;
+  }
+  .stage.reveal ~ .replay { opacity: 1; pointer-events: auto; }
+  .replay:hover, .replay:focus-visible {
+    color: rgba(225,240,255,0.7);
+    outline: none;
+  }
+
+  /* Reduced motion: no transitions; JS jumps straight to resting state. */
+  @media (prefers-reduced-motion: reduce) {
+    .ltr, .contact, .replay { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+  <!-- Rotating beam cone + dust (decorative; the name lives in the DOM). -->
+  <canvas id="beam" aria-hidden="true"></canvas>
+  <div class="vignette" aria-hidden="true"></div>
+
+  <main class="stage">
+    <!-- Real, selectable text. aria-label keeps the full name recoverable. -->
+    <h1 class="name" id="name" aria-label="Vrastislav Vender"></h1>
+
+    <div class="contact">
+      <a href="mailto:hello@vraven.com">hello@vraven.com</a>
+      <span class="sep" aria-hidden="true">&middot;</span>
+      <a href="tel:+420123456789">+420&nbsp;123&nbsp;456&nbsp;789</a>
+    </div>
+  </main>
+
+  <!-- Real, focusable replay control (also: click/tap anywhere). -->
+  <button class="replay" id="replay" type="button">Replay</button>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------------------------------------------------------------
+     1. BUILD THE NAME from per-letter spans.
+        Lit = first three letters of each word: V R A / V E N -> VRAVEN.
+     --------------------------------------------------------------- */
+  const WORDS = [
+    { text: "VRASTISLAV", litCount: 3 }, // V R A lit; S T I S L A V dim
+    { text: "VENDER",     litCount: 3 }  // V E N lit; D E R dim
+  ];
+
+  const nameEl = document.getElementById("name");
+  const letterEls = [];
+
+  WORDS.forEach((word) => {
+    const wordEl = document.createElement("span");
+    wordEl.className = "word";
+    [...word.text].forEach((ch, i) => {
+      const s = document.createElement("span");
+      s.className = "ltr " + (i < word.litCount ? "lit" : "dim");
+      s.textContent = ch;
+      wordEl.appendChild(s);
+      letterEls.push(s);
+    });
+    nameEl.appendChild(wordEl);
+  });
+
+  // Per-letter dynamic state: live glow + a "held" floor for VRAVEN.
+  const letters = letterEls.map((el) => ({
+    el,
+    lit: el.classList.contains("lit"),
+    cx: 0, cy: 0,        // letter center (CSS px), refreshed on resize
+    ang: 0,              // angle from the light source to this letter
+    glow: 0,             // live wash value 0..1 written to --glow
+    held: 0              // latched floor (VRAVEN holds glow after a pass)
+  }));
+
+  const stage  = document.querySelector(".stage");
+  const replay = document.getElementById("replay");
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+  /* ---------------------------------------------------------------
+     2. CANVAS: the rotating lighthouse cone + drifting sea dust.
+        Additive ('lighter') compositing accumulates the cold glow.
+     --------------------------------------------------------------- */
+  const canvas = document.getElementById("beam");
+  const ctx = canvas.getContext("2d");
+
+  let W = 0, H = 0, DPR = 1;
+  let particles = [];
+
+  // The lighthouse lamp: a single point source at the optical center
+  // of the name, so the cone sweeps across the letters like a real beam.
+  const source = { x: 0, y: 0 };
+
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);  // cap DPR for perf
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width  = Math.floor(W * DPR);
+    canvas.height = Math.floor(H * DPR);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);            // draw in CSS pixels
+
+    source.x = W * 0.5;
+    source.y = H * 0.5;
+
+    measureLetters();
+    seedParticles();
+  }
+
+  // The sweep is DERIVED from the measured letter angles (never hardcoded),
+  // so the very first pass washes the VRAVEN letters — in order — regardless
+  // of viewport size or how the words wrap. { start, dir } drive frame().
+  const sweep = { start: -Math.PI / 2, dir: 1 };
+
+  // Cache each letter's angle from the source, then aim the sweep so its
+  // FIRST arc crosses all six lit letters before any dim ones.
+  function measureLetters() {
+    for (const L of letters) {
+      const r = L.el.getBoundingClientRect();
+      L.cx = r.left + r.width / 2;
+      L.cy = r.top + r.height / 2;
+      L.ang = Math.atan2(L.cy - source.y, L.cx - source.x);
+    }
+    aimSweep();
+  }
+
+  // Find the smallest arc that contains every lit letter, then start the
+  // beam just before that arc and rotate through it (catching VRAVEN first).
+  function aimSweep() {
+    const lit = letters.filter((L) => L.lit);
+    if (!lit.length) return;
+    // Unwrap lit angles relative to the first so they form a contiguous run
+    // even when the cluster straddles the +/-PI seam (VRA above, VEN below).
+    const base = lit[0].ang;
+    const rel = lit.map((L) => base + angDelta(L.ang, base)); // unwrapped angles
+    const lo = Math.min(...rel);
+    const hi = Math.max(...rel);
+    // Sweep DOWNWARD through the cluster (dir = -1) so the upper VRA line is
+    // washed before the lower VEN line — honouring the VRA -> VEN reading
+    // order as closely as a single rotation allows. Begin a touch beyond the
+    // leading (high) edge so the cone eases onto the first letter.
+    const PREROLL = HALF + 0.12;
+    sweep.dir = -1;
+    sweep.start = hi + PREROLL;
+    // The establishing pass travels from `start` to a little past the last
+    // (low) lit letter, so every VRAVEN letter is fully washed during it.
+    sweep.establishArc = (hi + PREROLL) - (lo - (HALF + 0.10));
+  }
+
+  function seedParticles() {
+    const count = Math.round(Math.min(95, Math.max(45, (W * H) / 24000)));
+    particles = [];
+    for (let i = 0; i < count; i++) particles.push(makeParticle());
+  }
+
+  function makeParticle() {
+    return {
+      x: Math.random() * W,
+      y: Math.random() * H,
+      r: 0.4 + Math.random() * 1.7,
+      vx: (Math.random() - 0.5) * 0.16,   // gentle lateral drift
+      vy: -0.05 - Math.random() * 0.22,   // slow rise (sea-mist feel)
+      a: 0.05 + Math.random() * 0.35,
+      tw: Math.random() * Math.PI * 2     // twinkle phase
+    };
+  }
+
+  /* Shortest signed difference between two angles, in (-PI, PI]. */
+  function angDelta(a, b) {
+    let d = a - b;
+    while (d >  Math.PI) d -= 2 * Math.PI;
+    while (d < -Math.PI) d += 2 * Math.PI;
+    return d;
+  }
+
+  /* Draw the rotating cone of light from the source toward `beamAng`.
+     `intensity` (0..1) fades the whole beam in on load. */
+  const HALF = 0.34;            // half-angle of the cone (radians)
+  function drawBeam(beamAng, intensity) {
+    if (intensity <= 0.001) return;
+    const reach = Math.hypot(W, H);     // beam over-reaches the viewport
+
+    ctx.globalCompositeOperation = "lighter";
+
+    // --- Main cone: a triangle fan from the source, cold sea-white,
+    //     brightest at the lamp and fading toward the rim. ---
+    const a0 = beamAng - HALF, a1 = beamAng + HALF;
+    const p0x = source.x + Math.cos(a0) * reach;
+    const p0y = source.y + Math.sin(a0) * reach;
+    const p1x = source.x + Math.cos(a1) * reach;
+    const p1y = source.y + Math.sin(a1) * reach;
+
+    const g = ctx.createRadialGradient(
+      source.x, source.y, 0, source.x, source.y, reach
+    );
+    g.addColorStop(0.00, "rgba(225,240,255," + (0.40 * intensity) + ")");
+    g.addColorStop(0.18, "rgba(190,220,255," + (0.20 * intensity) + ")");
+    g.addColorStop(0.55, "rgba(150,195,255," + (0.07 * intensity) + ")");
+    g.addColorStop(1.00, "rgba(120,170,255,0)");
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(source.x, source.y);
+    ctx.lineTo(p0x, p0y);
+    ctx.lineTo(p1x, p1y);
+    ctx.closePath();
+    ctx.fill();
+
+    // --- Hot inner shaft: a tighter, brighter core for the lamp feel. ---
+    const ha = HALF * 0.42;
+    const b0x = source.x + Math.cos(beamAng - ha) * reach;
+    const b0y = source.y + Math.sin(beamAng - ha) * reach;
+    const b1x = source.x + Math.cos(beamAng + ha) * reach;
+    const b1y = source.y + Math.sin(beamAng + ha) * reach;
+    const cg = ctx.createRadialGradient(
+      source.x, source.y, 0, source.x, source.y, reach * 0.9
+    );
+    cg.addColorStop(0.00, "rgba(240,248,255," + (0.45 * intensity) + ")");
+    cg.addColorStop(0.30, "rgba(205,230,255," + (0.16 * intensity) + ")");
+    cg.addColorStop(1.00, "rgba(150,200,255,0)");
+    ctx.fillStyle = cg;
+    ctx.beginPath();
+    ctx.moveTo(source.x, source.y);
+    ctx.lineTo(b0x, b0y);
+    ctx.lineTo(b1x, b1y);
+    ctx.closePath();
+    ctx.fill();
+
+    // --- Lamp bloom: a soft radial halo right at the source. ---
+    const lr = Math.min(W, H) * 0.18;
+    const lg = ctx.createRadialGradient(source.x, source.y, 0, source.x, source.y, lr);
+    lg.addColorStop(0, "rgba(235,245,255," + (0.30 * intensity) + ")");
+    lg.addColorStop(1, "rgba(235,245,255,0)");
+    ctx.fillStyle = lg;
+    ctx.fillRect(source.x - lr, source.y - lr, lr * 2, lr * 2);
+
+    ctx.globalCompositeOperation = "source-over";
+  }
+
+  /* Dust motes; brightness modulated by nearness to the current beam
+     direction (so they "catch" the rotating light) plus a slow twinkle. */
+  function drawParticles(beamAng, intensity, t) {
+    ctx.globalCompositeOperation = "lighter";
+    for (const p of particles) {
+      const pa = Math.atan2(p.y - source.y, p.x - source.x);
+      const inBeam = Math.max(0, 1 - Math.abs(angDelta(pa, beamAng)) / HALF);
+      const twinkle = 0.55 + 0.45 * Math.sin(t * 0.002 + p.tw);
+      const alpha = p.a * (0.25 + 0.75 * inBeam) * twinkle * intensity;
+      if (alpha <= 0.012) continue;
+      ctx.beginPath();
+      ctx.fillStyle = "rgba(225,240,255," + alpha.toFixed(3) + ")";
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalCompositeOperation = "source-over";
+  }
+
+  function stepParticles() {
+    for (const p of particles) {
+      p.x += p.vx;
+      p.y += p.vy;
+      if (p.y < -10) { p.y = H + 10; p.x = Math.random() * W; }
+      if (p.x < -10) p.x = W + 10;
+      if (p.x > W + 10) p.x = -10;
+    }
+  }
+
+  /* ---------------------------------------------------------------
+     3. TIMELINE / CHOREOGRAPHY.
+        A single rAF clock advances the beam angle and updates letters.
+        Phases (ms from start):
+          0..hold            black
+          hold..+arrive      beam fades in out of the dark
+          +arrive..          continuous hypnotic rotation (resting)
+        The name fades to DIM as the beam arrives; the first sweep over
+        each VRAVEN letter LATCHES its hold-glow; contact fades in last.
+     --------------------------------------------------------------- */
+  const T = {
+    hold:    600,    // pure black beat
+    arrive: 1500,    // beam emerges from darkness
+    name:    320     // dim name fades in QUICKLY, before the sweep ignites it
+                     // (so every letter is visible the moment it is washed)
+  };
+  const SPEED = 0.34;   // resting angular speed (rad/s) — slow & hypnotic.
+                        // start angle/direction/arc are DERIVED (see aimSweep).
+  const ESTABLISH = 1.9;    // seconds for the brisk first pass over the cluster
+  const HELD_FLOOR = 0.55;  // glow a VRAVEN letter HOLDS after its first pass;
+                            // < 1 leaves headroom so each later sweep re-blooms.
+  const DIM_CAP    = 0.22;  // most a non-VRAVEN letter may ever brighten, so a
+                            // passing beam only grazes it — never highlights it.
+
+  let startTime = 0;
+  let rafId = 0;
+  let timers = [];
+
+  function clamp01(x) { return x < 0 ? 0 : x > 1 ? 1 : x; }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3); }
+
+  function frame(now) {
+    if (!startTime) startTime = now;
+    const elapsed = now - startTime;
+
+    // Beam intensity ramps in after the hold, then stays at full.
+    const intensity = easeOut(clamp01((elapsed - T.hold) / T.arrive));
+
+    // Beam angle: an eased ESTABLISHING pass that briskly carries the cone
+    // across the whole VRAVEN cluster (igniting all six promptly, in order),
+    // then relaxes into a slow, constant, hypnotic rotation for the rest.
+    const sweepT = Math.max(0, (elapsed - T.hold) / 1000);
+    let travel;
+    if (sweepT < ESTABLISH) {
+      // Establishing pass at CONSTANT velocity across the cluster, so every
+      // VRAVEN letter gets equal dwell under the cone and latches its hold.
+      travel = (sweep.establishArc / ESTABLISH) * sweepT;
+    } else {
+      // Hand off to the slower resting rotation, continuing from the same
+      // angle. (Velocities differ a little; the change is gentle, not a jolt.)
+      travel = sweep.establishArc + (sweepT - ESTABLISH) * SPEED;
+    }
+    const beamAng = sweep.start + sweep.dir * travel;
+
+    // --- Update each letter's wash from the beam direction ---
+    for (const L of letters) {
+      // How centered the beam cone is on this letter (1 at the core).
+      const prox = Math.max(0, 1 - Math.abs(angDelta(beamAng, L.ang)) / HALF);
+      const wash = prox * intensity;
+
+      if (L.lit) {
+        // VRAVEN CATCHES & HOLDS: once a pass washes a letter, its glow
+        // floor latches up to HELD_FLOOR and never falls — but the floor is
+        // < 1, so each later sweep still blooms it brighter, then settles back.
+        if (wash > 0.35) L.held = Math.max(L.held, HELD_FLOOR);
+        L.glow += (Math.max(wash, L.held) - L.glow) * 0.16;
+      } else {
+        // Dim letters only FAINTLY catch a passing beam (capped well below the
+        // VRAVEN hold floor) and fully decay back to shadow — so VRAVEN always
+        // dominates and the resting state reads unambiguously "VRAVEN lit".
+        const faint = Math.min(wash, DIM_CAP);
+        L.glow += (faint - L.glow) * 0.16;
+        if (L.glow < 0.004) L.glow = 0;
+      }
+      // Write the live value; CSS color-mix + text-shadow react to it.
+      L.el.style.setProperty("--glow", L.glow.toFixed(3));
+    }
+
+    ctx.clearRect(0, 0, W, H);
+    drawBeam(beamAng, intensity);
+    drawParticles(beamAng, intensity, now);
+    stepParticles();
+
+    rafId = requestAnimationFrame(frame);   // calm resting loop continues
+  }
+
+  // Reveal the DIM name as the beam arrives, then fade in contact + replay.
+  function scheduleReveal() {
+    letters.forEach((L, i) => {
+      const delay = T.hold + (i / letters.length) * T.name;
+      timers.push(setTimeout(() => L.el.classList.add("shown"), delay));
+    });
+    // Contact appears only AFTER the establishing sweep has finished igniting
+    // all of VRAVEN — so the load reads black -> dim -> ignite -> rest.
+    const after = T.hold + ESTABLISH * 1000 + 650;
+    timers.push(setTimeout(() => stage.classList.add("reveal"), after));
+  }
+
+  /* ---------------------------------------------------------------
+     4. RESTING STATE (reduced motion) + REPLAY control.
+     --------------------------------------------------------------- */
+  function clearAll() {
+    cancelAnimationFrame(rafId);
+    timers.forEach(clearTimeout);
+    timers = [];
+  }
+
+  function setRestingStateInstant() {
+    // Reduced motion: show the final composition with no animation.
+    clearAll();
+    measureLetters();
+    letters.forEach((L) => {
+      L.el.classList.add("shown");
+      L.held = L.lit ? 0.85 : 0;           // VRAVEN holds its glow
+      L.glow = L.held;
+      L.el.style.setProperty("--glow", L.glow.toFixed(3));
+    });
+    stage.classList.add("reveal");
+    // A single static beam frame, aimed straight across the name.
+    ctx.clearRect(0, 0, W, H);
+    drawBeam(0, 1);                         // points right, across the word
+    drawParticles(0, 1, 0);
+  }
+
+  function play() {
+    clearAll();
+
+    if (reduce.matches) { setRestingStateInstant(); return; }
+
+    // Reset letters and stage so the intro re-triggers cleanly.
+    letters.forEach((L) => {
+      L.el.classList.remove("shown");
+      L.glow = 0; L.held = 0;
+      L.el.style.setProperty("--glow", "0");
+    });
+    stage.classList.remove("reveal");
+    void stage.offsetWidth;                 // force reflow before re-adding
+
+    measureLetters();
+    startTime = 0;
+    scheduleReveal();
+    rafId = requestAnimationFrame(frame);
+  }
+
+  /* ---------------------------------------------------------------
+     5. WIRE UP: init, resize, replay, reduced-motion.
+     --------------------------------------------------------------- */
+  resize();
+  window.addEventListener("resize", () => {
+    resize();
+    if (reduce.matches) setRestingStateInstant();
+  });
+
+  // Replay on the dedicated control (a real <button>, so Enter/Space activate
+  // it natively — no document-level key handler, which would otherwise swallow
+  // keyboard activation of the contact links).
+  replay.addEventListener("click", (e) => { e.stopPropagation(); play(); });
+
+  // Click/tap ANYWHERE else replays — but never when the user is interacting
+  // with a link or button, so following mailto:/tel: (mouse OR keyboard) and
+  // pressing Replay work normally instead of also re-running the intro.
+  document.addEventListener("click", (e) => {
+    if (e.target.closest("a, button")) return;
+    play();
+  });
+
+  // Respond live if the user toggles the reduced-motion preference.
+  reduce.addEventListener?.("change", () => play());
+
+  // Kick off the experience.
+  play();
+})();
+</script>
+</body>
+</html>

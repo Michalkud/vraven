@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vrastislav Vender</title>
+<style>
+  /* ============================================================
+     AURORA MIST — Vrastislav Vender
+     Ethereal aurora/fog drifts behind the name. The letters that
+     spell VRAVEN (V R A from "VRASTISLAV", V E N from "VENDER")
+     glow through the haze with a cool luminescence. The rest of
+     the name stays present but dim — in shadow, never highlighted.
+     ============================================================ */
+
+  :root {
+    /* Aurora palette: deep blue -> violet -> teal */
+    --bg-void:  #02030a;   /* near-black base */
+    --lit:      #eaf6ff;   /* cool luminescent text */
+    --lit-glow: #9fd8ff;   /* halo colour around lit letters */
+    --dim:      #94abd6;   /* faint letters resting in shadow */
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+    background: var(--bg-void);
+    color: var(--lit);
+    font-family: "Avenir Next", "Helvetica Neue", -apple-system,
+                 BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Full-screen stage holding canvas + name + contact */
+  .stage {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;            /* whole stage replays on click/tap */
+  }
+
+  /* Aurora mist canvas sits behind everything */
+  #aurora {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+  }
+
+  /* A soft cool vignette to deepen the darkness at the edges */
+  .vignette {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background: radial-gradient(ellipse 70% 60% at 50% 50%,
+                  transparent 0%, transparent 45%, rgba(2,3,10,0.85) 100%);
+  }
+
+  /* ---- The name -------------------------------------------- */
+  .name {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    line-height: 1.05;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+    /* Scale fluidly across mobile -> desktop */
+    font-size: clamp(2.1rem, 11vw, 8.5rem);
+    padding: 0 4vw;
+    user-select: text;          /* real selectable text */
+    opacity: 0;                 /* hidden on the black hold; JS fades it in */
+    transition: opacity 2.4s cubic-bezier(.33,0,.2,1);
+  }
+
+  /* Each word stays together so VRA / VEN never wraps apart.
+     A literal space sits between the two .word spans in the markup,
+     so copied text reads "VRASTISLAV VENDER" (with the space) and the
+     words can still wrap onto separate lines on narrow screens. */
+  .word {
+    display: inline-block;
+    white-space: nowrap;
+  }
+
+  /* Every letter is its own animatable box */
+  .ltr {
+    display: inline-block;
+    will-change: opacity, filter, transform;
+  }
+
+  /* DIM letters — visible but faint, no glow, resting in shadow */
+  .dim {
+    color: var(--dim);
+    opacity: 0.26;
+    text-shadow: none;
+  }
+
+  /* LIT letters — the VRAVEN letters that ignite through the haze.
+     Start dark (as faint as the rest); .ignited adds the cool bloom. */
+  .lit {
+    color: var(--lit);
+    opacity: 0.26;              /* begins as faint as the dim letters */
+    filter: brightness(0.6);
+    /* When ignition is removed on replay, ease back down smoothly */
+    transition:
+      opacity 0.9s ease,
+      filter  0.9s ease,
+      text-shadow 0.9s ease;
+  }
+  .lit.ignited {
+    opacity: 1;
+    filter: brightness(1.18);
+    color: var(--lit);
+    /* Layered cool bloom: tight core -> wide atmospheric halo */
+    text-shadow:
+      0 0 4px   rgba(234,246,255,0.95),
+      0 0 12px  rgba(159,216,255,0.90),
+      0 0 26px  rgba(120,190,255,0.70),
+      0 0 54px  rgba(90,160,255,0.50),
+      0 0 96px  rgba(60,120,230,0.34);
+    transition:
+      opacity 1.7s cubic-bezier(.22,.61,.36,1),
+      filter  1.7s cubic-bezier(.22,.61,.36,1),
+      text-shadow 1.7s cubic-bezier(.22,.61,.36,1);
+  }
+
+  /* ---- Contact, fades in last ------------------------------ */
+  .contact {
+    position: relative;
+    z-index: 2;
+    margin-top: clamp(1.4rem, 4vh, 3rem);
+    display: flex;
+    gap: clamp(1rem, 4vw, 2.4rem);
+    flex-wrap: wrap;
+    justify-content: center;
+    font-size: clamp(0.8rem, 2.4vw, 1.05rem);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    opacity: 0;                 /* revealed by JS / final state */
+  }
+  .contact a {
+    color: var(--lit-glow);
+    text-decoration: none;
+    opacity: 0.85;
+    transition: opacity 0.4s ease, text-shadow 0.4s ease;
+    text-shadow: 0 0 10px rgba(120,190,255,0.25);
+  }
+  .contact a:hover,
+  .contact a:focus-visible {
+    opacity: 1;
+    text-shadow: 0 0 14px rgba(159,216,255,0.6);
+    outline: none;
+  }
+
+  /* Subtle replay hint / control */
+  .replay {
+    position: fixed;
+    z-index: 3;
+    bottom: clamp(1rem, 3vh, 1.8rem);
+    right:  clamp(1rem, 3vw, 1.8rem);
+    background: none;
+    border: 1px solid rgba(159,216,255,0.25);
+    color: var(--lit-glow);
+    font: inherit;
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 0.5em 0.9em;
+    border-radius: 999px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.6s ease, border-color 0.3s ease, color 0.3s ease;
+  }
+  .replay:hover,
+  .replay:focus-visible {
+    border-color: rgba(159,216,255,0.7);
+    color: var(--lit);
+    outline: none;
+  }
+  /* Visible keyboard focus ring for the contact links too */
+  .contact a:focus-visible {
+    outline: 2px solid rgba(159,216,255,0.6);
+    outline-offset: 4px;
+    border-radius: 2px;
+  }
+
+  /* Screen-reader-only helper to guarantee full name is recoverable */
+  .sr-only {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0);
+    white-space: nowrap; border: 0;
+  }
+
+  /* ============================================================
+     REDUCED MOTION — jump straight to the calm resting state:
+     VRAVEN already ignited, contact already visible, no entrance
+     choreography (JS skips the timeline and paints one static frame).
+     ============================================================ */
+  @media (prefers-reduced-motion: reduce) {
+    .name, .lit, .lit.ignited, .contact, .replay { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+  <main class="stage" id="stage" aria-label="Vrastislav Vender — landing">
+    <canvas id="aurora" aria-hidden="true"></canvas>
+    <div class="vignette" aria-hidden="true"></div>
+
+    <!-- Accessible full name for screen readers -->
+    <h1 class="sr-only">Vrastislav Vender</h1>
+
+    <!-- Visible name. aria-hidden because the h1 above carries the
+         clean text; here letters are split for the lighting effect,
+         but it remains real, selectable text. -->
+    <div class="name" aria-hidden="true" id="name">
+      <span class="word"><span class="ltr lit">V</span><span class="ltr lit">R</span><span class="ltr lit">A</span><span class="ltr dim">S</span><span class="ltr dim">T</span><span class="ltr dim">I</span><span class="ltr dim">S</span><span class="ltr dim">L</span><span class="ltr dim">A</span><span class="ltr dim">V</span></span> <span class="word"><span class="ltr lit">V</span><span class="ltr lit">E</span><span class="ltr lit">N</span><span class="ltr dim">D</span><span class="ltr dim">E</span><span class="ltr dim">R</span></span>
+    </div>
+
+    <!-- Contact, revealed last -->
+    <nav class="contact" id="contact" aria-label="Contact">
+      <a href="mailto:hello@vraven.com">hello@vraven.com</a>
+      <a href="tel:+420123456789">+420&nbsp;123&nbsp;456&nbsp;789</a>
+    </nav>
+
+    <button class="replay" id="replay" type="button" aria-label="Replay animation">Replay</button>
+  </main>
+
+<script>
+(function () {
+  "use strict";
+
+  /* -----------------------------------------------------------
+     References + capabilities
+     ----------------------------------------------------------- */
+  var canvas    = document.getElementById("aurora");
+  var ctx       = canvas.getContext("2d");
+  var stage     = document.getElementById("stage");
+  var nameEl    = document.getElementById("name");
+  var contact   = document.getElementById("contact");
+  var replayBtn = document.getElementById("replay");
+  var litEls    = Array.prototype.slice.call(document.querySelectorAll(".lit"));
+
+  var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* -----------------------------------------------------------
+     AURORA MIST — soft drifting colored light blobs on canvas.
+     We render large radial gradients in "lighter" blend mode so
+     overlapping blue/violet/teal mist accumulates into aurora-like
+     light. Everything animates via requestAnimationFrame only.
+     ----------------------------------------------------------- */
+  var W = 0, H = 0, DPR = 1;
+
+  // Mist "blobs": position, drift velocity, radius, colour, phase.
+  var palette = [
+    [31, 58, 138],    // deep blue
+    [91, 63, 176],    // violet
+    [23, 138, 158],   // teal
+    [60, 90, 200]     // cool indigo accent
+  ];
+  var blobs = [];
+
+  function buildBlobs() {
+    blobs = [];
+    var count = 7;
+    for (var i = 0; i < count; i++) {
+      var col = palette[i % palette.length];
+      blobs.push({
+        x: Math.random(),                       // normalized 0..1
+        y: 0.32 + Math.random() * 0.36,         // hug the name band
+        vx: (Math.random() - 0.5) * 0.000045,   // very slow drift
+        vy: (Math.random() - 0.5) * 0.000028,
+        r:  0.30 + Math.random() * 0.30,        // radius as frac of min(W,H)
+        col: col,
+        phase: Math.random() * Math.PI * 2,
+        pulse: 0.18 + Math.random() * 0.10      // breathing speed factor
+      });
+    }
+  }
+
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2); // cap DPR for perf
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width  = Math.floor(W * DPR);
+    canvas.height = Math.floor(H * DPR);
+    canvas.style.width  = W + "px";
+    canvas.style.height = H + "px";
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+
+  // Master mist intensity (0..1) — ramps up during the entrance.
+  var mistLevel = 0;
+
+  function drawAurora(t) {
+    // Base wash so the void isn't pure flat black.
+    ctx.globalCompositeOperation = "source-over";
+    ctx.fillStyle = "rgba(2,3,10,1)";
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.globalCompositeOperation = "lighter"; // additive light accumulation
+    var minDim = Math.min(W, H);
+
+    for (var i = 0; i < blobs.length; i++) {
+      var b = blobs[i];
+
+      // Drift slowly; wrap softly around the screen.
+      b.x += b.vx;
+      b.y += b.vy;
+      if (b.x < -0.3) b.x = 1.3; else if (b.x > 1.3) b.x = -0.3;
+      if (b.y < 0.05) b.vy = Math.abs(b.vy);
+      if (b.y > 0.95) b.vy = -Math.abs(b.vy);
+
+      // Gentle breathing of radius + intensity.
+      var breathe = 0.5 + 0.5 * Math.sin(t * 0.0004 * b.pulse + b.phase);
+      var radius  = (b.r + 0.06 * breathe) * minDim;
+      var px = b.x * W;
+      var py = b.y * H;
+
+      // Intensity scales with mistLevel (entrance) and breathing.
+      var alpha = (0.16 + 0.10 * breathe) * mistLevel;
+
+      var g = ctx.createRadialGradient(px, py, 0, px, py, radius);
+      var c = b.col;
+      g.addColorStop(0,   "rgba(" + c[0] + "," + c[1] + "," + c[2] + "," + alpha + ")");
+      g.addColorStop(0.5, "rgba(" + c[0] + "," + c[1] + "," + c[2] + "," + (alpha * 0.4) + ")");
+      g.addColorStop(1,   "rgba(" + c[0] + "," + c[1] + "," + c[2] + ",0)");
+      ctx.fillStyle = g;
+      ctx.fillRect(px - radius, py - radius, radius * 2, radius * 2);
+    }
+
+    ctx.globalCompositeOperation = "source-over";
+  }
+
+  /* -----------------------------------------------------------
+     DUST — a few slow drifting motes for atmosphere.
+     ----------------------------------------------------------- */
+  var dust = [];
+  function buildDust() {
+    dust = [];
+    var n = window.innerWidth < 600 ? 26 : 48;
+    for (var i = 0; i < n; i++) {
+      dust.push({
+        x: Math.random(),
+        y: Math.random(),
+        z: 0.4 + Math.random() * 0.6,            // depth -> size/speed
+        drift: (Math.random() - 0.5) * 0.00006,
+        rise: -0.00002 - Math.random() * 0.00004,
+        tw: Math.random() * Math.PI * 2          // twinkle phase
+      });
+    }
+  }
+  function drawDust(t) {
+    ctx.globalCompositeOperation = "lighter";
+    for (var i = 0; i < dust.length; i++) {
+      var d = dust[i];
+      d.x += d.drift;
+      d.y += d.rise;
+      if (d.y < -0.02) d.y = 1.02;
+      if (d.x < -0.02) d.x = 1.02; else if (d.x > 1.02) d.x = -0.02;
+      var tw = 0.4 + 0.6 * Math.sin(t * 0.001 + d.tw);
+      var a = 0.25 * tw * d.z * mistLevel;
+      var size = d.z * 1.6;
+      ctx.fillStyle = "rgba(200,225,255," + a + ")";
+      ctx.beginPath();
+      ctx.arc(d.x * W, d.y * H, size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalCompositeOperation = "source-over";
+  }
+
+  /* -----------------------------------------------------------
+     Main render loop
+     ----------------------------------------------------------- */
+  var rafId = null;
+  function loop(t) {
+    drawAurora(t);
+    drawDust(t);
+    rafId = requestAnimationFrame(loop);
+  }
+  // Draw exactly one frame with no scheduling — used for the calm,
+  // motionless resting image under prefers-reduced-motion.
+  function renderStaticFrame() {
+    var t = performance.now();
+    drawAurora(t);
+    drawDust(t);
+  }
+
+  /* -----------------------------------------------------------
+     CHOREOGRAPHY (entrance):
+       black -> beam/mist arrives -> dim name appears ->
+       VRAVEN ignites -> resting state -> contact fades in.
+     We tween `mistLevel` up, ignite letters in sequence, then
+     reveal contact + replay.
+     ----------------------------------------------------------- */
+  var timers = [];
+  function clearTimers() {
+    timers.forEach(clearTimeout);
+    timers = [];
+  }
+
+  function setIgnited(on) {
+    litEls.forEach(function (el) {
+      el.classList.toggle("ignited", on);
+    });
+  }
+
+  // Tween mistLevel from current value to target over `dur` ms.
+  var mistTween = null;
+  function tweenMist(target, dur) {
+    var start = mistLevel;
+    var t0 = performance.now();
+    cancelAnimationFrame(mistTween);
+    (function step(now) {
+      var k = Math.min(1, (now - t0) / dur);
+      // easeInOutSine
+      var e = 0.5 - 0.5 * Math.cos(Math.PI * k);
+      mistLevel = start + (target - start) * e;
+      if (k < 1) mistTween = requestAnimationFrame(step);
+    })(t0);
+  }
+
+  function showFinalImmediately() {
+    cancelAnimationFrame(mistTween);
+    mistLevel = 1;
+    setIgnited(true);
+    nameEl.style.transition = "none";
+    nameEl.style.opacity = "1";        // name fully present, no fade
+    contact.style.transition = "none";
+    contact.style.opacity = "1";
+    replayBtn.style.transition = "none";
+    replayBtn.style.opacity = "0.7";
+  }
+
+  function playEntrance() {
+    clearTimers();
+
+    // Reset to the black starting state: name hidden, mist at zero.
+    cancelAnimationFrame(mistTween);
+    mistLevel = 0;
+    setIgnited(false);
+    nameEl.style.transition = "none";
+    nameEl.style.opacity = "0";        // name absent during the black hold
+    // Force a reflow so the next opacity change actually transitions.
+    void nameEl.offsetWidth;
+    nameEl.style.transition = "opacity 2.4s cubic-bezier(.33,0,.2,1)";
+    contact.style.transition = "opacity 1.6s ease";
+    contact.style.opacity = "0";
+    replayBtn.style.transition = "opacity 0.8s ease";
+    replayBtn.style.opacity = "0";
+
+    // 1) Hold on black briefly, then the mist/beam arrives AND the
+    //    whole name fades up faintly (dim) as the haze blooms.
+    timers.push(setTimeout(function () {
+      tweenMist(1, 3200);     // slow, calm bloom of the haze
+      nameEl.style.opacity = "1";  // dim name surfaces from the dark
+    }, 500));
+
+    // 2) Ignite the VRAVEN letters one by one as the haze settles.
+    var igniteStart = 2400;
+    var igniteStep  = 280;
+    litEls.forEach(function (el, idx) {
+      timers.push(setTimeout(function () {
+        el.classList.add("ignited");
+      }, igniteStart + idx * igniteStep));
+    });
+
+    // 3) Resting state + contact fade in LAST — after the final letter's
+    //    bloom (1.7s transition) has settled, so the reveal reads as
+    //    "name first, contact after."
+    var lastIgnite  = igniteStart + (litEls.length - 1) * igniteStep; // ~3800ms
+    var contactDelay = lastIgnite + 1700 + 300;                       // ~5800ms
+    timers.push(setTimeout(function () {
+      contact.style.opacity = "1";
+      replayBtn.style.opacity = "0.7";
+    }, contactDelay));
+  }
+
+  /* -----------------------------------------------------------
+     Boot
+     ----------------------------------------------------------- */
+  function init() {
+    resize();
+    buildBlobs();
+    buildDust();
+
+    if (reduceMotion) {
+      // No continuous animation: snap to the resting image and paint
+      // a single static frame of the aurora — nothing keeps moving.
+      showFinalImmediately();
+      renderStaticFrame();
+    } else {
+      loop(performance.now());   // start the rAF render loop
+      playEntrance();
+    }
+  }
+
+  /* -----------------------------------------------------------
+     Replay — on the control, or click/tap anywhere on the stage.
+     Guards: don't hijack clicks on the contact links, and don't
+     fight an active text selection of the name.
+     ----------------------------------------------------------- */
+  function replay() {
+    if (reduceMotion) { showFinalImmediately(); return; }
+    playEntrance();
+  }
+  stage.addEventListener("click", function (e) {
+    if (e.target.closest("a")) return;                  // let contact links work
+    if (e.target.closest("#replay")) return;            // handled separately
+    var sel = window.getSelection();
+    if (sel && sel.toString()) return;                  // don't fight selection
+    replay();
+  });
+  replayBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    replay();
+  });
+  // Keyboard: the focusable replay button fires via Enter/Space natively.
+
+  // Debounced resize: rebuild fields for the new aspect ratio.
+  var rt = null;
+  window.addEventListener("resize", function () {
+    clearTimeout(rt);
+    rt = setTimeout(function () {
+      resize();
+      buildBlobs();
+      buildDust();
+      if (reduceMotion) renderStaticFrame();  // loop is off; repaint once
+    }, 180);
+  });
+
+  // Pause the RAF loop when the tab is hidden to save battery.
+  // Under reduced motion there is no loop to resume — just repaint
+  // the single static frame so the canvas survives a resize/refocus.
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    } else if (reduceMotion) {
+      renderStaticFrame();
+    } else if (rafId === null) {
+      rafId = requestAnimationFrame(loop);
+    }
+  });
+
+  init();
+})();
+</script>
+</body>
+</html>

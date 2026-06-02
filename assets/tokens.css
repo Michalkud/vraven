@@ -1,0 +1,300 @@
+/* ============================================================================
+   VRAVEN — shared design tokens, type system, components, fallback light.
+   Loaded by vraven-minimal.html (A) and vraven-site.html (B).
+   Fonts (Clash Display + Satoshi) are linked from each page's <head>.
+   ============================================================================ */
+
+:root {
+  /* ---- Palette (dark-mode correct: off-black bg, off-white ink, warm gold) -- */
+  --bg-0:     #0A0A0F;          /* base near-black, faint cool          */
+  --bg-1:     #12110A;          /* warmer near-black for lit zones        */
+  --ink:      #EDE6D6;          /* primary text (off-white, not pure)     */
+  --ink-dim:  #9A9183;          /* secondary text                         */
+  --shadow:   #5A4C3A;          /* dim letters / shadowed warm            */
+  --gold:     #FFC46E;          /* accent gold                            */
+  --hot:      #FFF3DE;          /* hot light core                         */
+  --edge:     #FF9640;          /* deep orange beam edge                  */
+
+  /* rgb triples for rgba() compositing */
+  --rgb-hot:  255, 243, 222;
+  --rgb-gold: 255, 196, 110;
+  --rgb-edge: 255, 150, 64;
+
+  /* lit-glyph surface gradient (shadow face -> lit face) */
+  --glyph-shadow: #583A1C;
+  --glyph-mid:    #C8A86E;
+  --glyph-lit:    #FFEED0;
+
+  /* ---- Type ---------------------------------------------------------------- */
+  --font-display: "Clash Display", "Satoshi", system-ui, sans-serif;
+  --font-text:    "Satoshi", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+
+  /* fluid type scale */
+  --step--1: clamp(0.78rem, 0.72rem + 0.3vw, 0.92rem);
+  --step-0:  clamp(0.95rem, 0.88rem + 0.35vw, 1.1rem);
+  --step-1:  clamp(1.3rem, 1.1rem + 1vw, 2rem);
+  --step-2:  clamp(2rem, 1.5rem + 2.4vw, 3.6rem);
+  --step-3:  clamp(2.8rem, 1.8rem + 4.6vw, 6rem);
+
+  /* layout */
+  --maxw: 1280px;
+  --gutter: clamp(1.25rem, 5vw, 5rem);
+  --ease-out: cubic-bezier(.2, .7, .2, 1);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  background: var(--bg-0);
+  color: var(--ink);
+  font-family: var(--font-text);
+  font-size: var(--step-0);
+  line-height: 1.6;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+
+::selection { background: rgba(var(--rgb-gold), 0.30); color: #fff; }
+
+a { color: inherit; text-decoration: none; }
+
+img, svg, canvas { display: block; max-width: 100%; }
+
+/* shared container */
+.wrap { width: min(100% - 2 * var(--gutter), var(--maxw)); margin-inline: auto; }
+
+/* eyebrow / section index label */
+.eyebrow {
+  font-family: var(--font-text);
+  font-size: var(--step--1);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  font-weight: 500;
+}
+
+/* ============================================================================
+   THE WORDMARK — VRASTISLAV VENDER, with VRA + VEN lit (reading VRAVEN) and
+   the remaining letters present but dim. Real selectable HTML text in
+   Clash Display; the WebGL beam behind it provides the volumetric light, the
+   lit letters carry a directional "surface catching light" gradient + glow.
+   ============================================================================ */
+.wordmark {
+  font-family: var(--font-display);
+  font-weight: 700;
+  line-height: 0.92;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: baseline;
+  gap: 0.16em;
+  font-size: clamp(3rem, 13vw, 10rem);
+  transform: rotate(var(--wm-tilt, -7deg));
+  transform-origin: center;
+}
+.wordmark .word { white-space: nowrap; display: inline-flex; align-items: baseline; }
+
+/* lit cluster — directional lit-surface gradient + warm glow (the catch) */
+.wordmark .lit {
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+  background-image: linear-gradient(64deg,
+    #4A2D0E 0%,
+    #B07E36 30%,
+    #E7BE76 60%,
+    #FFE3AE 100%);
+  text-shadow:
+    0.012em -0.01em 0.04em rgba(var(--rgb-gold), 0.40),
+    0 0.014em 0.06em rgba(0, 0, 0, 0.5);
+  /* the glow that reads as catching the beam; intensity driven by --catch */
+  filter: drop-shadow(0 0 calc(0.10em * var(--catch, 1)) rgba(var(--rgb-gold), calc(0.5 * var(--catch, 1))))
+          drop-shadow(0 0 calc(0.32em * var(--catch, 1)) rgba(var(--rgb-edge), calc(0.32 * var(--catch, 1))));
+}
+
+.wordmark .l { display: inline-block; }
+
+/* dim cluster — present, smaller, in shadow */
+.wordmark .dim {
+  color: var(--shadow);
+  opacity: 0.5;
+  font-size: 0.42em;
+  letter-spacing: -0.04em;
+  font-weight: 600;
+  align-self: flex-end;
+  padding-bottom: 0.12em;
+}
+
+/* ---- HERO INTRO: light arrives first (shader), THEN VRA/VEN ignite
+   right-to-left following the beam, dim letters last. Only while html.intro
+   is set (added by hero.js when motion is allowed). Default state (no .intro)
+   is the final resting look, so reduced-motion / no-JS land correctly. ----- */
+html.intro .wordmark .l {
+  opacity: 0;
+  /* longhand so the per-letter .iN delays below are not reset by a shorthand */
+  animation-name: ignite;
+  animation-duration: 1.0s;
+  animation-timing-function: var(--ease-out);
+  animation-fill-mode: both;
+}
+html.intro .wordmark .dim { opacity: 0; animation: dim-in 1.1s var(--ease-out) 1.3s forwards; }
+
+/* right-to-left: N E V (VEN) then A R V (VRA). i1..i3 = V R A, i4..i6 = V E N */
+html.intro .i6 { animation-delay: 1.50s; }
+html.intro .i5 { animation-delay: 1.63s; }
+html.intro .i4 { animation-delay: 1.76s; }
+html.intro .i3 { animation-delay: 1.98s; }
+html.intro .i2 { animation-delay: 2.11s; }
+html.intro .i1 { animation-delay: 2.24s; }
+
+@keyframes ignite { 0% { opacity: 0; filter: brightness(0.4); } 100% { opacity: 1; filter: brightness(1); } }
+@keyframes dim-in { to { opacity: 0.5; } }
+
+/* ============================================================================
+   TAGLINE / CONTACT / BUTTONS / CONTROLS
+   ============================================================================ */
+.tagline {
+  font-family: var(--font-text);
+  font-size: var(--step-1);
+  line-height: 1.3;
+  color: var(--ink);
+  max-width: 22ch;
+  font-weight: 400;
+}
+.tagline .accent { color: var(--gold); }
+
+.contact-row {
+  display: flex; flex-wrap: wrap; gap: clamp(1rem, 4vw, 3rem);
+  align-items: center;
+  font-size: var(--step-0);
+  letter-spacing: 0.04em;
+}
+.contact-row a {
+  color: var(--ink);
+  border-bottom: 1px solid rgba(var(--rgb-gold), 0.3);
+  padding-bottom: 2px;
+  transition: color .25s var(--ease-out), border-color .25s var(--ease-out);
+}
+.contact-row a:hover, .contact-row a:focus-visible {
+  color: var(--hot); border-color: rgba(var(--rgb-gold), 0.85); outline: none;
+}
+
+/* primary CTA — magnetic-ready */
+.cta {
+  display: inline-flex; align-items: center; gap: 0.7em;
+  font-family: var(--font-display); font-weight: 600;
+  font-size: var(--step-1);
+  color: var(--bg-0);
+  background: linear-gradient(120deg, var(--gold), var(--hot));
+  padding: 0.7em 1.4em; border-radius: 999px;
+  transition: transform .3s var(--ease-out), box-shadow .3s var(--ease-out);
+  box-shadow: 0 0 0 rgba(var(--rgb-gold), 0);
+}
+.cta:hover, .cta:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 40px -10px rgba(var(--rgb-gold), 0.5);
+  outline: none;
+}
+
+/* hero Skip/Replay controls (WCAG 2.2.2) */
+.hero-controls {
+  position: absolute; left: 50%; bottom: clamp(1rem, 3.5vh, 2rem);
+  transform: translateX(-50%);
+  display: flex; gap: 0.6rem; z-index: 6;
+}
+.hero-controls button {
+  font: 600 0.72rem/1 var(--font-text);
+  letter-spacing: 0.16em; text-transform: uppercase;
+  color: rgba(var(--rgb-hot), 0.7);
+  background: rgba(var(--rgb-gold), 0.06);
+  border: 1px solid rgba(var(--rgb-gold), 0.25);
+  border-radius: 999px; padding: 0.55rem 1.1rem; cursor: pointer;
+  transition: color .2s, border-color .2s, background .2s;
+}
+.hero-controls button:hover { color: var(--hot); border-color: rgba(var(--rgb-gold), 0.6); background: rgba(var(--rgb-gold), 0.12); }
+.hero-controls button:focus-visible { outline: 2px solid var(--hot); outline-offset: 3px; }
+
+/* scroll cue */
+.scroll-cue {
+  position: absolute; left: 50%; bottom: clamp(1rem, 3.5vh, 2rem);
+  transform: translateX(-50%);
+  font-size: var(--step--1); letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--ink-dim); display: flex; flex-direction: column; align-items: center; gap: 0.5em;
+  z-index: 5; pointer-events: none;
+}
+.scroll-cue::after { content: ""; width: 1px; height: 2.4rem; background: linear-gradient(var(--ink-dim), transparent); animation: cue 2.2s var(--ease-out) infinite; }
+@keyframes cue { 0% { transform: scaleY(0); transform-origin: top; } 45% { transform: scaleY(1); transform-origin: top; } 55% { transform: scaleY(1); transform-origin: bottom; } 100% { transform: scaleY(0); transform-origin: bottom; } }
+
+/* ============================================================================
+   HERO SHELL — canvas (WebGL beam) behind, content above, grain on top.
+   ============================================================================ */
+.hero {
+  position: relative;
+  min-height: 100svh;
+  display: grid; place-items: center;
+  overflow: hidden;
+  isolation: isolate;
+}
+.hero-gl { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; }
+.hero-content { position: relative; z-index: 3; text-align: center; padding: 0 var(--gutter); }
+.hero .grain {
+  position: absolute; inset: 0; z-index: 4; pointer-events: none; opacity: 0.12;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 220px 220px;
+}
+.hero-vignette {
+  position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  background: radial-gradient(125% 120% at 50% 52%, transparent 36%, rgba(0,0,0,0.66) 100%);
+}
+
+/* ============================================================================
+   FALLBACK LIGHT — shown when WebGL is unavailable or reduced-motion is set.
+   A compact warm CSS god-ray from the upper-right corner. Toggled by
+   body.no-webgl (hero.js adds it) / always available under reduced motion.
+   ============================================================================ */
+.hero-fallback { position: absolute; inset: 0; z-index: 1; pointer-events: none; display: none; }
+body.no-webgl .hero-gl { display: none; }
+body.no-webgl .hero-fallback { display: block; }
+
+.hero-fallback .fb-atmos {
+  position: absolute; inset: 0;
+  background: radial-gradient(120% 95% at 100% 0%,
+    rgba(var(--rgb-gold), 0.16) 0%, rgba(var(--rgb-edge), 0.07) 26%, transparent 62%);
+}
+.hero-fallback .fb-rays {
+  position: absolute; inset: 0;
+  background: repeating-conic-gradient(from 200deg at 100% 0%,
+    transparent 0 2.2deg, rgba(var(--rgb-gold), 0.10) 2.8deg 3.5deg, transparent 4.3deg 6deg);
+  -webkit-mask: conic-gradient(from 210deg at 100% 0%, transparent 0, #000 8deg, #000 42deg, transparent 52deg),
+                radial-gradient(122% 122% at 100% 0%, transparent 3%, #000 18%, transparent 72%);
+  -webkit-mask-composite: source-in;
+          mask: conic-gradient(from 210deg at 100% 0%, transparent 0, #000 8deg, #000 42deg, transparent 52deg),
+                radial-gradient(122% 122% at 100% 0%, transparent 3%, #000 18%, transparent 72%);
+          mask-composite: intersect;
+}
+.hero-fallback .fb-pool {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 40% 26% at 52% 52%,
+    rgba(var(--rgb-hot), 0.18) 0%, rgba(var(--rgb-gold), 0.12) 36%, transparent 72%);
+}
+
+/* ============================================================================
+   GENERIC SECTION + REVEAL HOOKS (motion.js animates [data-reveal])
+   ============================================================================ */
+section { position: relative; }
+.section-pad { padding-block: clamp(5rem, 14vh, 11rem); }
+
+[data-reveal] { will-change: transform, opacity; }
+
+/* Reduced-motion / no-JS: everything visible, no transforms. */
+.no-js [data-reveal], .reduce [data-reveal] { opacity: 1 !important; transform: none !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
+  .scroll-cue::after { animation: none; }
+}

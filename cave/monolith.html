@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vrastislav Vender</title>
+<style>
+  /* ============================================================
+     VRAVEN — "Monolith"
+     A broad volumetric shaft of neutral-white daylight crashes
+     down from a small opening high in a near-black cave and
+     ignites a monumental, top-lit VRAVEN standing on the floor.
+     Monochrome-leaning, high-contrast, no colour cast, no dust.
+     All animation is transform / opacity / filter only.
+     ============================================================ */
+
+  :root{
+    --bg:#040405;          /* near-black cave base */
+    --light:255,255,253;   /* neutral white daylight (no colour cast) */
+  }
+
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  html,body{ height:100%; }
+
+  body{
+    background:var(--bg);
+    color:#fff;
+    font-family:"Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
+    overflow:hidden;
+    min-height:100svh;
+  }
+
+  /* The whole world. Click anywhere to replay. */
+  .scene{
+    position:fixed;
+    inset:0;
+    display:flex;
+    align-items:flex-end;            /* the monument sits LOW */
+    justify-content:center;
+    cursor:pointer;
+    isolation:isolate;               /* contain the screen blends */
+    background:
+      /* faint neutral floor bounce so the base isn't dead flat */
+      radial-gradient(120% 60% at 50% 122%, rgba(150,150,150,0.05), transparent 60%),
+      var(--bg);
+  }
+
+  /* ============================================================
+     THE SHAFT — narrow at the opening (top), fans WIDE to the floor.
+     A trapezoid built with clip-path + stacked vertical gradients,
+     plus a hot core and faint god-ray striations. Screen-blended.
+     ============================================================ */
+  .shaft-wrap{
+    position:absolute;
+    top:-3%;
+    left:50%;
+    width:min(155vw, 1500px);
+    height:108%;
+    z-index:2;
+    pointer-events:none;
+    mix-blend-mode:screen;
+    transform-origin:top center;     /* pour grows downward from opening */
+  }
+  /* shared cone clip: tight at the opening, broad at the floor */
+  .shaft-wrap > *{
+    position:absolute;
+    left:50%;
+    top:0;
+    height:100%;
+    transform:translateX(-50%);
+    clip-path:polygon(43% 0%, 57% 0%, 97% 100%, 3% 100%);
+  }
+
+  /* soft outer haze body of the beam (big blur = smooth volume) */
+  .shaft-haze{
+    width:100%;
+    background:linear-gradient(to bottom,
+      rgba(var(--light),0.00)  0%,
+      rgba(var(--light),0.20) 14%,
+      rgba(var(--light),0.15) 55%,
+      rgba(var(--light),0.06) 88%,
+      rgba(var(--light),0.00) 100%);
+    filter:blur(28px);
+  }
+
+  /* brighter inner volume */
+  .shaft-body{
+    width:80%;
+    clip-path:polygon(40% 0%, 60% 0%, 91% 100%, 9% 100%);
+    background:linear-gradient(to bottom,
+      rgba(var(--light),0.00)  0%,
+      rgba(var(--light),0.34) 10%,
+      rgba(var(--light),0.24) 52%,
+      rgba(var(--light),0.08) 90%,
+      rgba(var(--light),0.00) 100%);
+    filter:blur(11px);
+  }
+
+  /* faint god-ray striations: thin angled slivers, two crossing passes */
+  .shaft-rays{
+    width:100%;
+    background:
+      repeating-linear-gradient(93deg,
+        rgba(var(--light),0.00)  0px,
+        rgba(var(--light),0.00) 15px,
+        rgba(var(--light),0.07) 21px,
+        rgba(var(--light),0.00) 29px),
+      repeating-linear-gradient(87deg,
+        rgba(var(--light),0.00)  0px,
+        rgba(var(--light),0.00) 23px,
+        rgba(var(--light),0.05) 29px,
+        rgba(var(--light),0.00) 39px);
+    opacity:.7;
+    filter:blur(2px);
+  }
+
+  /* hot bright core down the centre (drawn last = on top) */
+  .shaft-core{
+    width:36%;
+    clip-path:polygon(34% 0%, 66% 0%, 79% 100%, 21% 100%);
+    background:linear-gradient(to bottom,
+      rgba(var(--light),0.00)  0%,
+      rgba(var(--light),0.90)  8%,
+      rgba(var(--light),0.58) 45%,
+      rgba(var(--light),0.14) 92%,
+      rgba(var(--light),0.00) 100%);
+    filter:blur(6px);
+  }
+
+  /* ---- THE OPENING: small bright mouth high up where light enters ---- */
+  .opening{
+    position:absolute;
+    top:-4%;
+    left:50%;
+    transform:translateX(-50%);
+    width:min(22vw,180px);
+    height:11vh;
+    z-index:3;
+    pointer-events:none;
+    mix-blend-mode:screen;
+    background:radial-gradient(60% 100% at 50% 28%,
+      rgba(var(--light),0.98), rgba(var(--light),0.38) 45%, transparent 72%);
+    filter:blur(9px);
+  }
+
+  /* ---- THE POOL: glowing landing of light on the cave floor ---- */
+  .pool{
+    position:absolute;
+    bottom:-10%;
+    left:50%;
+    transform:translateX(-50%) scaleX(1);
+    width:min(125vw, 1150px);
+    height:44%;
+    z-index:2;
+    pointer-events:none;
+    mix-blend-mode:screen;
+    background:radial-gradient(60% 72% at 50% 50%,
+      rgba(var(--light),0.50),
+      rgba(var(--light),0.16) 40%,
+      transparent 72%);
+    filter:blur(24px);
+  }
+
+  /* ---- CAVE: rough dark edges so the frame reads as rock ---- */
+  .cave-edges{
+    position:absolute; inset:0; z-index:6; pointer-events:none;
+    background:
+      linear-gradient(90deg, #000 0%, rgba(0,0,0,0) 20%, rgba(0,0,0,0) 80%, #000 100%),
+      linear-gradient(180deg, #000 0%, rgba(0,0,0,0) 16%);
+  }
+
+  /* ---- VIGNETTE: clamps the frame into deep cave shadow ---- */
+  .vignette{
+    position:absolute; inset:0; z-index:6; pointer-events:none;
+    background:radial-gradient(115% 100% at 50% 40%,
+      transparent 34%, rgba(0,0,0,0.55) 74%, rgba(0,0,0,0.96) 100%);
+  }
+
+  /* ============================================================
+     THE MONUMENT — big VRAVEN, top-lit, standing on the floor.
+     ============================================================ */
+  .monument{
+    position:relative;
+    z-index:5;
+    text-align:center;
+    width:100%;
+    padding-bottom:clamp(26px, 10vh, 110px);
+  }
+
+  .vraven{
+    font-weight:800;
+    letter-spacing:.04em;
+    line-height:.9;
+    font-size:clamp(4.2rem, 23vw, 18rem);
+    white-space:nowrap;              /* VRAVEN is one word: never breaks */
+    /* TOP-LIT: bright where the shaft strikes the top edge,
+       falling into shadow toward the base. */
+    background:linear-gradient(to bottom,
+      #ffffff 0%,
+      #f4f5f6 20%,
+      #b4b7bd 50%,
+      #56595f 77%,
+      #2b2d32 100%);
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+    -webkit-text-fill-color:transparent;
+    /* glow lives in a filter so it can be animated on / off */
+    filter:
+      drop-shadow(0 -2px 1px rgba(var(--light),0.45))
+      drop-shadow(0 0 32px rgba(var(--light),0.30));
+    user-select:text;
+  }
+
+  /* full name, dim, in shadow beneath the monument (selectable caption) */
+  .caption{
+    margin-top:clamp(10px,2.2vh,26px);
+    font-size:clamp(.62rem,1.7vw,1rem);
+    letter-spacing:.42em;
+    text-transform:uppercase;
+    color:#7c7e85;
+    font-weight:400;
+  }
+
+  /* contact, refined, fades in last */
+  .contact{
+    margin-top:clamp(14px,3vh,30px);
+    display:flex;
+    gap:clamp(16px,4vw,42px);
+    justify-content:center;
+    align-items:center;
+    flex-wrap:wrap;
+    font-size:clamp(.66rem,1.6vw,.92rem);
+    letter-spacing:.14em;
+  }
+  .contact a{
+    color:#b9bbc1;
+    text-decoration:none;
+    border-bottom:1px solid rgba(185,187,193,0.28);
+    padding-bottom:2px;
+    transition:color .3s ease, border-color .3s ease;
+  }
+  .contact a:hover,
+  .contact a:focus-visible{ color:#fff; border-color:rgba(255,255,255,0.7); outline:none; }
+  .contact .dot{ color:#55575d; }
+
+  /* ---- Replay control ---- */
+  .replay{
+    position:fixed;
+    right:18px; bottom:16px;
+    z-index:8;
+    background:rgba(255,255,255,0.05);
+    border:1px solid rgba(255,255,255,0.18);
+    color:#c9cbd1;
+    font:inherit;
+    font-size:.7rem;
+    letter-spacing:.18em;
+    text-transform:uppercase;
+    padding:9px 16px;
+    border-radius:30px;
+    cursor:pointer;
+    -webkit-backdrop-filter:blur(4px);
+    backdrop-filter:blur(4px);
+    transition:color .25s, border-color .25s, background .25s;
+  }
+  .replay:hover{ color:#fff; border-color:rgba(255,255,255,0.5); background:rgba(255,255,255,0.1); }
+  .replay:focus-visible{ outline:2px solid #fff; outline-offset:2px; }
+
+  /* ============================================================
+     REVEAL — initial state is black & collapsed; adding .play runs
+     the cinematic. Re-adding .play (after a reflow) replays it.
+     ============================================================ */
+
+  /* resting (no .play): everything dark / collapsed */
+  .shaft-wrap{ transform:translateX(-50%) scaleY(0); opacity:0; }
+  .opening,
+  .pool{ opacity:0; }
+  .vraven{ opacity:0; filter:brightness(.12) blur(2px); }
+  .caption,
+  .contact{ opacity:0; }
+
+  /* --- PLAY: each piece driven by its own keyframe + delay --- */
+  .play .opening   { animation:openMouth  500ms ease-out    200ms forwards; }
+  .play .shaft-wrap{ animation:pourDown   1700ms cubic-bezier(.22,.61,.36,1) 350ms forwards; }
+  .play .pool      { animation:poolSettle 1500ms ease-out   1500ms forwards; }
+  .play .vraven    { animation:ignite     1400ms ease-out   1400ms forwards; }
+  .play .caption   { animation:fadeUp     1200ms ease-out   2200ms forwards; }
+  .play .contact   { animation:fadeUp     1400ms ease-out   2900ms forwards; }
+
+  @keyframes openMouth{ from{ opacity:0; } to{ opacity:1; } }
+
+  @keyframes pourDown{
+    0%  { transform:translateX(-50%) scaleY(0); opacity:0; }
+    18% { opacity:1; }
+    100%{ transform:translateX(-50%) scaleY(1); opacity:1; }
+  }
+
+  @keyframes poolSettle{
+    from{ opacity:0; transform:translateX(-50%) scaleX(.55); }
+    to  { opacity:1; transform:translateX(-50%) scaleX(1); }
+  }
+
+  /* text ignites as the light reaches it: flash bright, then settle —
+     END STATE keeps the resting glow so the monument stays lit. */
+  @keyframes ignite{
+    0%  { opacity:0; filter:brightness(.12) blur(2px); }
+    40% { opacity:1; filter:brightness(2.0) blur(.4px); }
+    100%{ opacity:1;
+          filter:
+            drop-shadow(0 -2px 1px rgba(var(--light),0.45))
+            drop-shadow(0 0 32px rgba(var(--light),0.30)); }
+  }
+
+  @keyframes fadeUp{
+    from{ opacity:0; transform:translateY(14px); }
+    to  { opacity:1; transform:translateY(0); }
+  }
+
+  /* ============================================================
+     REDUCED MOTION — skip the show, present the final resting state.
+     ============================================================ */
+  @media (prefers-reduced-motion: reduce){
+    .shaft-wrap{ transform:translateX(-50%) scaleY(1); opacity:1; animation:none !important; }
+    .opening,
+    .pool{ opacity:1; animation:none !important; }
+    .vraven{
+      opacity:1; animation:none !important;
+      filter:
+        drop-shadow(0 -2px 1px rgba(var(--light),0.45))
+        drop-shadow(0 0 32px rgba(var(--light),0.30));
+    }
+    .caption,
+    .contact{ opacity:1; animation:none !important; }
+    .replay{ display:none; }
+  }
+</style>
+</head>
+<body>
+  <!-- Click the scene (or the Replay button) to run the reveal again -->
+  <main class="scene" id="scene" aria-label="Vrastislav Vender — illuminated monument">
+
+    <!-- Volumetric daylight shaft: narrow at the opening, fanning to the floor -->
+    <div class="shaft-wrap" aria-hidden="true">
+      <div class="shaft-haze"></div>
+      <div class="shaft-body"></div>
+      <div class="shaft-rays"></div>
+      <div class="shaft-core"></div>
+    </div>
+
+    <!-- The small bright mouth where light breaks into the cave -->
+    <div class="opening" aria-hidden="true"></div>
+
+    <!-- Glowing pool where the shaft lands on the cave floor -->
+    <div class="pool" aria-hidden="true"></div>
+
+    <!-- The monument: big top-lit VRAVEN with the full name beneath -->
+    <div class="monument">
+      <!-- aria-label gives assistive tech the real, full name -->
+      <h1 class="vraven" aria-label="Vrastislav Vender">VRAVEN</h1>
+      <!-- selectable, recoverable full name -->
+      <p class="caption">Vrastislav&nbsp;Vender</p>
+      <nav class="contact" aria-label="Contact">
+        <a href="mailto:hello@vraven.com">hello@vraven.com</a>
+        <span class="dot" aria-hidden="true">&middot;</span>
+        <a href="tel:+420123456789">+420&nbsp;123&nbsp;456&nbsp;789</a>
+      </nav>
+    </div>
+
+    <!-- Cave framing on top of the light -->
+    <div class="cave-edges" aria-hidden="true"></div>
+    <div class="vignette" aria-hidden="true"></div>
+  </main>
+
+  <button class="replay" id="replay" type="button" aria-label="Replay the reveal animation">Replay</button>
+
+  <script>
+    /* ----------------------------------------------------------
+       Reveal control. CSS does the animation; JS only toggles the
+       .play class (and forces a reflow to restart it on replay).
+       Reduced-motion users never need this — CSS shows the final
+       resting state and the Replay button is hidden.
+       ---------------------------------------------------------- */
+    (function(){
+      "use strict";
+      var scene  = document.getElementById("scene");
+      var replay = document.getElementById("replay");
+      var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      function play(){
+        scene.classList.remove("play");
+        void scene.offsetWidth;            // force reflow to retrigger animations
+        scene.classList.add("play");
+      }
+
+      // Run once on load (unless the user prefers reduced motion).
+      if(!reduce){
+        // small hold "on black" before the light breaks in
+        window.setTimeout(play, 450);
+      }
+
+      // Replay on the button, or by tapping the scene (but not the links).
+      replay.addEventListener("click", function(e){ e.stopPropagation(); play(); });
+      scene.addEventListener("click", function(e){
+        if(e.target.closest("a")) return; // let the contact links work
+        play();
+      });
+    })();
+  </script>
+</body>
+</html>

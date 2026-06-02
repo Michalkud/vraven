@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vrastislav Vender</title>
+<style>
+  /* ============================================================
+     VRASTISLAV VENDER — "Down The Shaft"
+     A near-black cave. A volumetric shaft of neutral-white light
+     pours down from a small opening high above, fanning outward
+     and settling into a glowing pool on the floor. The six lit
+     letters V-R-A-V-E-N stack VERTICALLY down the centre of the
+     beam — the stacked VRAVEN is the beam's content. The full
+     name rests dim in a horizontal caption at the foot.
+
+     The VISIBLE / RESTING state is the CSS DEFAULT; the reveal
+     runs only while .stage has .play. So under reduced-motion we
+     simply never add .play and the full scene shows at rest.
+     All motion is opacity / transform / filter only. No assets.
+     ============================================================ */
+
+  :root{
+    /* Timing baton for the reveal sequence (seconds). */
+    --t-break:   0.5s;   /* light begins to break in        */
+    --t-ignite:  1.3s;   /* first VRAVEN letter ignites      */
+    --t-step:    0.17s;  /* gap between letters igniting     */
+    --t-pool:    1.2s;   /* pool settles                     */
+    --t-contact: 3.0s;   /* caption + contact fade in last   */
+    --ease: cubic-bezier(.22,.61,.36,1);
+    --light: 250, 250, 250;   /* neutral monochrome white (rgb) */
+  }
+
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ height:100%; }
+
+  body{
+    background:#040405;
+    color:#e9e9ec;
+    font-family:"Helvetica Neue", Helvetica, Arial, "Segoe UI", system-ui, sans-serif;
+    overflow:hidden;
+    min-height:100vh;
+    min-height:100svh;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* The stage holds everything, clips the beam, and is the click target. */
+  .stage{
+    position:fixed;
+    inset:0;
+    overflow:hidden;
+    cursor:pointer;
+    /* Cave base: deep, faintly cool near-black, a touch of glow up top. */
+    background:
+      radial-gradient(120% 92% at 50% 0%,
+        #15161a 0%, #0a0a0c 38%, #050506 70%, #020203 100%);
+  }
+
+  /* ---- THE OPENING : small bright mouth high up --------------- */
+  .opening{
+    position:absolute;
+    top:-2vh;
+    left:50%;
+    transform:translateX(-50%);
+    width:clamp(60px, 7vw, 120px);
+    height:clamp(22px, 3vh, 40px);
+    border-radius:50%;
+    background:
+      radial-gradient(60% 60% at 50% 55%,
+        #ffffff 0%, #f3f4f8 35%, rgba(220,224,235,.55) 60%, rgba(120,124,135,0) 100%);
+    filter:blur(7px);
+    mix-blend-mode:screen;
+    opacity:0;
+    z-index:5;
+  }
+
+  /* ---- THE SHAFT : trapezoid cone of light ------------------- */
+  /* Wrapper anchored at the opening; clipped to a narrow-to-wide cone. */
+  .shaft{
+    position:absolute;
+    top:0;
+    left:50%;
+    transform:translateX(-50%);
+    width:130%;
+    height:100%;
+    pointer-events:none;
+    mix-blend-mode:screen;
+    -webkit-clip-path:polygon(47% 0%, 53% 0%, 86% 100%, 14% 100%);
+            clip-path:polygon(47% 0%, 53% 0%, 86% 100%, 14% 100%);
+    z-index:3;
+  }
+
+  /* Soft outer body of the beam — the volumetric haze. */
+  .shaft .haze{
+    position:absolute; inset:0;
+    background:
+      linear-gradient(to bottom,
+        rgba(255,255,255,.50) 0%,
+        rgba(238,240,247,.28) 28%,
+        rgba(210,214,226,.15) 60%,
+        rgba(170,176,190,.06) 88%,
+        rgba(140,146,160,0)  100%);
+    filter:blur(22px);
+    opacity:0;
+  }
+
+  /* Hot bright core — a narrower inner cone for intensity. */
+  .shaft .core{
+    position:absolute;
+    top:0; left:50%;
+    width:58%; height:100%;
+    transform:translateX(-50%);
+    background:
+      linear-gradient(to bottom,
+        rgba(255,255,255,.92) 0%,
+        rgba(255,255,255,.58) 24%,
+        rgba(244,246,252,.28) 58%,
+        rgba(220,224,235,.10) 86%,
+        rgba(200,205,220,0)  100%);
+    filter:blur(11px);
+    opacity:0;
+  }
+
+  /* God-ray striations: thin angled slivers, very subtle, two passes. */
+  .shaft .rays{
+    position:absolute; inset:0;
+    background:
+      repeating-linear-gradient(95deg,
+        rgba(255,255,255,0) 0px,
+        rgba(255,255,255,0) 14px,
+        rgba(255,255,255,.05) 22px,
+        rgba(255,255,255,0) 34px),
+      repeating-linear-gradient(85deg,
+        rgba(255,255,255,0) 0px,
+        rgba(255,255,255,0) 18px,
+        rgba(255,255,255,.04) 27px,
+        rgba(255,255,255,0) 40px);
+    filter:blur(2px);
+    opacity:0;
+  }
+
+  /* Unclipped, heavily blurred halo BEHIND the clipped cone.
+     clip-path crops the shaft with razor-sharp edges; this soft
+     column feathers those edges so the beam reads as gentle haze
+     fanning out, not a hard-edged wedge. */
+  .halo{
+    position:absolute;
+    top:-4%;
+    left:50%;
+    transform:translateX(-50%);
+    width:44%;
+    height:104%;
+    pointer-events:none;
+    mix-blend-mode:screen;
+    opacity:0;
+    z-index:2;
+    /* Cone-ish soft column: bright/narrow up top, faint/wide low down. */
+    background:
+      radial-gradient(56% 116% at 50% -8%,
+        rgba(255,255,255,.38) 0%,
+        rgba(224,228,240,.17) 34%,
+        rgba(180,186,200,.07) 62%,
+        rgba(150,156,170,0)  82%);
+    filter:blur(50px);
+  }
+
+  /* ---- THE POOL : glow on the cave floor --------------------- */
+  /* z-index 9 sits ABOVE the cave vignette (z8) so the floor pool
+     is NOT crushed by the vignette's dark bottom edge — it screens
+     over it as a genuinely visible glowing pool, yet stays below
+     the text (z10). */
+  .pool{
+    position:absolute;
+    bottom:7%;
+    left:50%;
+    transform:translate(-50%, 0) scale(.6);
+    width:min(74vw, 700px);
+    height:min(36vh, 300px);
+    background:
+      radial-gradient(50% 50% at 50% 50%,
+        rgba(255,255,255,.58) 0%,
+        rgba(232,236,246,.30) 30%,
+        rgba(190,196,210,.11) 58%,
+        rgba(150,156,170,0)  78%);
+    filter:blur(26px);
+    mix-blend-mode:screen;
+    opacity:0;
+    z-index:9;
+  }
+
+  /* ---- CAVE VIGNETTE : dark, rough frame --------------------- */
+  .vignette{
+    position:absolute; inset:0;
+    pointer-events:none;
+    z-index:8;
+    background:
+      radial-gradient(120% 82% at 50% 44%,
+        rgba(0,0,0,0) 36%,
+        rgba(0,0,0,.42) 62%,
+        rgba(0,0,0,.80) 84%,
+        rgba(2,2,3,.96) 100%),
+      /* darkness hugging the side walls of the cave */
+      linear-gradient(to right,
+        rgba(0,0,0,.72), rgba(0,0,0,0) 22%, rgba(0,0,0,0) 78%, rgba(0,0,0,.72)),
+      linear-gradient(to bottom,
+        rgba(0,0,0,.5) 0%, rgba(0,0,0,0) 24%, rgba(0,0,0,0) 72%, rgba(0,0,0,.6) 100%);
+  }
+
+  /* ============================================================
+     THE STACKED VRAVEN — six lit letters, one per line, running
+     down the centre of the shaft from opening toward the floor.
+     This stack IS the beam's content. Real, selectable text.
+     ============================================================ */
+  .vraven{
+    position:absolute;
+    left:50%;
+    top:50%;
+    transform:translate(-50%,-50%);
+    z-index:10;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    /* clamp keeps the whole stack on-screen from phone to desktop;
+       vmin-based so it scales with the shorter viewport edge. */
+    gap:clamp(.02em, 1vmin, .26em);
+    line-height:.96;
+    font-weight:700;
+    letter-spacing:.05em;
+    font-size:clamp(1.9rem, 8.6vmin, 4.6rem);
+    pointer-events:none;
+  }
+  .vraven span{
+    display:block;
+    color:rgb(var(--light));
+    opacity:0;
+    transform:translateY(-.16em);
+    /* a letter glowing inside the beam */
+    text-shadow:
+      0 0 .1em  rgba(255,255,255,.85),
+      0 0 .42em rgba(var(--light), .8),
+      0 0 1em   rgba(var(--light), .45);
+  }
+
+  /* ---- FOOT CAPTION : the FULL name, VRA/VEN brighter -------- */
+  .fullname{
+    position:absolute;
+    left:50%;
+    bottom:clamp(3.4vmin, 6vh, 7vh);
+    z-index:10;
+    text-align:center;
+    width:min(94vw, 760px);
+    font-weight:400;
+    font-size:clamp(.6rem, 2vw, .92rem);
+    letter-spacing:.42em;
+    text-indent:.42em;            /* balance trailing letter-spacing */
+    line-height:1.5;
+    color:#54565e;                /* dim shadow tone for non-VRAVEN letters */
+    opacity:0;
+    /* resting transform; reveal animates from a +6px offset */
+    transform:translateX(-50%) translateY(6px);
+  }
+  /* Keep each word's letters together so VRA / VEN never break apart.
+     The caption may wrap BETWEEN the two words on narrow phones,
+     but never inside a word — so the VRA/VEN reading always holds. */
+  .fullname .word{ display:inline-block; white-space:nowrap; }
+  .fullname .word + .word{ margin-left:.7em; }
+  /* The illuminated VRA / VEN initials, brighter in the caption. */
+  .fullname .lit{
+    color:rgb(var(--light));
+    text-shadow:0 0 .5em rgba(var(--light), .55);
+  }
+
+  /* ---- CONTACT — at the very bottom, fades in last ----------- */
+  .contact{
+    position:absolute;
+    left:50%;
+    bottom:3.2%;
+    transform:translateX(-50%);
+    z-index:10;
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:center;
+    gap:clamp(.5rem, 4vw, 1.6rem);
+    align-items:center;
+    font-size:clamp(.62rem, 1.7vw, .8rem);
+    letter-spacing:.14em;
+    opacity:0;
+    max-width:94vw;
+  }
+  .contact a{
+    /* fixed colour + opacity so the hover animates opacity only,
+       honouring "animate only transform/opacity/filter". */
+    color:rgb(var(--light));
+    opacity:.5;
+    text-decoration:none;
+    white-space:nowrap;
+    transition:opacity .35s ease;
+  }
+  .contact a:hover, .contact a:focus-visible{ opacity:1; outline:none; }
+  .contact a:focus-visible{ outline:2px solid rgba(var(--light), .8); outline-offset:3px; }
+  .contact .dot{ color:#3a3b42; }
+
+  /* ---- REPLAY CONTROL --------------------------------------- */
+  .replay{
+    position:absolute;
+    top:14px; right:16px;
+    z-index:12;
+    background:rgba(255,255,255,.05);
+    border:1px solid rgba(255,255,255,.16);
+    color:#aaacb6;
+    font:inherit;
+    font-size:.66rem;
+    letter-spacing:.22em;
+    text-transform:uppercase;
+    padding:.5em .95em;
+    border-radius:999px;
+    cursor:pointer;
+    opacity:0;
+    /* only opacity transitions; colour swap on hover is instant */
+    transition:opacity .5s ease;
+  }
+  .replay:hover, .replay:focus-visible{
+    color:#f2f3f7;
+    border-color:rgba(255,255,255,.42);
+    background:rgba(255,255,255,.1);
+    outline:none;
+  }
+  .replay:focus-visible{ outline:2px solid rgba(var(--light), .8); outline-offset:3px; }
+
+  /* ============================================================
+     PLAY STATE — adding .play to .stage runs the reveal.
+     Hold-on-black is the brief delay before --t-break.
+     Each layer animates along the shared timing baton.
+     ============================================================ */
+  .stage.play .opening{ animation:openIn 1.3s var(--ease) var(--t-break) forwards; }
+  .stage.play .halo   { animation:fade 2.2s var(--ease) var(--t-break) forwards; --to:.85; }
+  .stage.play .haze   { animation:fade 2.1s var(--ease) var(--t-break) forwards; --to:.9; }
+  .stage.play .core   { animation:fade 1.9s var(--ease) calc(var(--t-break) + .2s) forwards; --to:1; }
+  .stage.play .rays   { animation:rayIn 2.4s var(--ease) calc(var(--t-break) + .35s) forwards; }
+  .stage.play .pool   { animation:poolIn 1.8s var(--ease) var(--t-pool) forwards; }
+
+  /* Each VRAVEN letter IGNITES top-to-bottom as the beam reaches it. */
+  .stage.play .vraven span{ animation:ignite .6s var(--ease) both; }
+  .stage.play .vraven span:nth-child(1){ animation-delay:calc(var(--t-ignite) + 0*var(--t-step)); }
+  .stage.play .vraven span:nth-child(2){ animation-delay:calc(var(--t-ignite) + 1*var(--t-step)); }
+  .stage.play .vraven span:nth-child(3){ animation-delay:calc(var(--t-ignite) + 2*var(--t-step)); }
+  .stage.play .vraven span:nth-child(4){ animation-delay:calc(var(--t-ignite) + 3*var(--t-step)); }
+  .stage.play .vraven span:nth-child(5){ animation-delay:calc(var(--t-ignite) + 4*var(--t-step)); }
+  .stage.play .vraven span:nth-child(6){ animation-delay:calc(var(--t-ignite) + 5*var(--t-step)); }
+
+  .stage.play .fullname{ animation:captionIn 1.4s var(--ease) var(--t-contact) forwards; }
+  .stage.play .contact { animation:fade 1.4s ease calc(var(--t-contact) + .3s) forwards; --to:1; }
+  .stage.play .replay  { animation:fade 1.4s ease calc(var(--t-contact) + .5s) forwards; --to:1; }
+
+  /* Gentle living shimmer on the beam once it has settled. */
+  .stage.play .shaft{ animation:breathe 7s ease-in-out 5s infinite; }
+
+  @keyframes openIn{
+    from{ opacity:0; filter:blur(15px); }
+    to  { opacity:1; filter:blur(7px); }
+  }
+  @keyframes fade{ to{ opacity:var(--to,1); } }
+  @keyframes rayIn{ from{ opacity:0; } to{ opacity:.7; } }
+  @keyframes poolIn{
+    from{ opacity:0; transform:translate(-50%,0) scale(.6); }
+    to  { opacity:1; transform:translate(-50%,0) scale(1); }
+  }
+  @keyframes ignite{
+    from{ opacity:0; transform:translateY(-.16em); filter:brightness(.3); }
+    60% { opacity:1; filter:brightness(1.45); }
+    to  { opacity:1; transform:translateY(0);    filter:brightness(1); }
+  }
+  @keyframes captionIn{
+    from{ opacity:0; transform:translateX(-50%) translateY(6px); }
+    to  { opacity:1; transform:translateX(-50%) translateY(0); }
+  }
+  @keyframes breathe{ 0%,100%{ opacity:1; } 50%{ opacity:.93; } }
+
+  /* ============================================================
+     SHORT-LANDSCAPE GUARD — on very short, wide viewports the
+     vmin-scaled VRAVEN stack and the foot caption crowd together.
+     Lift the caption/contact and shrink their gap so separation
+     holds. Gated tightly so it never touches phones or desktop.
+     ============================================================ */
+  @media (orientation:landscape) and (max-height:520px){
+    .fullname{ bottom:clamp(2.4vmin, 9vh, 56px); font-size:clamp(.55rem, 1.6vh, .8rem); }
+    .contact { bottom:2.4%; }
+  }
+
+  /* ============================================================
+     REDUCED MOTION — show the final resting state, no animation.
+     .play is never added by JS here, but we also neutralise any
+     animation and pin every layer to its settled values.
+     ============================================================ */
+  @media (prefers-reduced-motion: reduce){
+    .stage *{ animation:none !important; transition:none !important; }
+    .opening{ opacity:1; }
+    .halo{ opacity:.85; }
+    /* match the base .shaft .x specificity so these win in this block */
+    .shaft .haze{ opacity:.9; }
+    .shaft .core{ opacity:1; }
+    .shaft .rays{ opacity:.7; }
+    .pool{ opacity:1; transform:translate(-50%,0) scale(1); }
+    .vraven span{ opacity:1; transform:none; }
+    .fullname{ opacity:1; transform:translateX(-50%); }
+    .contact{ opacity:1; }
+    .contact a{ opacity:.6; }
+    .replay{ opacity:0; }      /* replay is a no-op here, so hide it */
+    .stage{ cursor:default; }
+  }
+</style>
+</head>
+<body>
+  <!-- The whole scene is one clickable stage; click/tap replays. -->
+  <main class="stage" id="stage"
+        aria-label="Vrastislav Vender. A shaft of light pours into a dark cave; the lit letters spell VRAVEN, the initials of his name.">
+
+    <!-- Light layers (decorative). -->
+    <div class="opening" aria-hidden="true"></div>
+    <div class="halo" aria-hidden="true"></div>
+    <div class="shaft" aria-hidden="true">
+      <div class="haze"></div>
+      <div class="core"></div>
+      <div class="rays"></div>
+    </div>
+    <div class="pool" aria-hidden="true"></div>
+
+    <!-- THE STACKED VRAVEN: six lit letters running down the beam.
+         aria-hidden because the recoverable full name lives in the
+         caption below plus the stage aria-label. -->
+    <div class="vraven" aria-hidden="true">
+      <span>V</span><span>R</span><span>A</span><span>V</span><span>E</span><span>N</span>
+    </div>
+
+    <!-- Full-name caption: real, selectable text. The VRA / VEN
+         initials are brighter; the remaining letters stay dim, in
+         shadow. Each word is kept unbreakable so VRA / VEN never
+         wrap mid-word. aria-label carries the clean full name. -->
+    <h1 class="fullname" aria-label="Vrastislav Vender">
+      <span class="word"><span class="lit">VRA</span>STISLAV</span>
+      <span class="word"><span class="lit">VEN</span>DER</span>
+    </h1>
+
+    <!-- Contact — fades in last. -->
+    <nav class="contact" aria-label="Contact">
+      <a href="mailto:hello@vraven.com">hello@vraven.com</a>
+      <span class="dot" aria-hidden="true">/</span>
+      <a href="tel:+420123456789">+420&nbsp;123&nbsp;456&nbsp;789</a>
+    </nav>
+
+    <!-- Cave vignette: above the light, below the text. -->
+    <div class="vignette" aria-hidden="true"></div>
+
+    <!-- Replay control. -->
+    <button class="replay" id="replay" type="button" aria-label="Replay the light reveal">Replay</button>
+  </main>
+
+  <script>
+    /* Minimal controller: toggle .play to (re)run the CSS-driven
+       reveal. No rAF animation loop — all timing lives in CSS. */
+    (function(){
+      var stage  = document.getElementById('stage');
+      var replay = document.getElementById('replay');
+
+      var reduce = window.matchMedia &&
+                   window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      // Restart the reveal by removing then re-adding the class,
+      // forcing a reflow in between so the animation re-fires.
+      function play(){
+        if(reduce) return;                 // resting state already shown
+        stage.classList.remove('play');
+        void stage.offsetWidth;            // force reflow so it restarts
+        stage.classList.add('play');
+      }
+
+      // Kick off after a brief hold on black (two frames in).
+      if(!reduce){
+        requestAnimationFrame(function(){ requestAnimationFrame(play); });
+      }
+
+      // Replay on stage click/tap, ignoring clicks on links/buttons.
+      stage.addEventListener('click', function(e){
+        if(e.target.closest('a, button')) return;
+        play();
+      });
+
+      // Dedicated replay button.
+      replay.addEventListener('click', function(e){
+        e.stopPropagation();
+        play();
+      });
+    })();
+  </script>
+</body>
+</html>

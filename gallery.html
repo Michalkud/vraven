@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>VRAVEN — gallery of variants</title>
+<meta name="description" content="VRAVEN — every design variant for Vrastislav Vender's site, in one gallery. A name brought into the light." />
+<style>
+  :root{ --bg:#06070a; --panel:#0e0f13; --line:rgba(255,255,255,.08);
+         --ink:#eceef2; --mut:#8a8f9a; --gold:#FFC46E; --accent:#d7dbe2; }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased; }
+  a{ color:inherit; }
+  header{ padding:clamp(40px,8vw,90px) clamp(20px,5vw,56px) 6px; max-width:1240px; margin:0 auto; }
+  .kicker{ font-size:.72rem; letter-spacing:.34em; text-transform:uppercase; color:var(--gold);
+    margin:0 0 16px; }
+  h1{ font-weight:300; letter-spacing:.1em; font-size:clamp(2rem,6vw,3.4rem); margin:0 0 .3em; }
+  h1 b{ font-weight:600; color:#fff; }
+  h1 .lit{ color:var(--gold); font-weight:600; }
+  .sub{ color:var(--mut); font-size:clamp(.9rem,2.2vw,1.06rem); line-height:1.65; max-width:62ch; margin:0; }
+  .sub b{ color:var(--ink); font-weight:500; }
+  .note{ margin:18px 0 0; font-size:.8rem; color:var(--mut); background:var(--panel);
+    border:1px solid var(--line); border-radius:10px; padding:10px 14px; display:inline-block; }
+  .note code{ color:var(--gold); }
+
+  section.group{ max-width:1240px; margin:0 auto; padding:0 clamp(20px,5vw,56px); }
+  .grouphead{ display:flex; align-items:baseline; gap:14px; flex-wrap:wrap;
+    margin:clamp(38px,6vw,64px) 0 4px; padding-top:clamp(24px,4vw,40px); border-top:1px solid var(--line); }
+  .grouphead h2{ font-weight:500; font-size:1.4rem; letter-spacing:.04em; margin:0; }
+  .grouphead p{ margin:0; color:var(--mut); font-size:.86rem; }
+
+  .grid{ margin:22px 0 8px;
+    display:grid; grid-template-columns:repeat(auto-fill,minmax(330px,1fr)); gap:clamp(16px,2.5vw,26px); }
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:14px; overflow:hidden;
+    display:flex; flex-direction:column; transition:border-color .25s, transform .25s; }
+  .card:hover{ border-color:rgba(255,196,110,.4); transform:translateY(-3px); }
+  .card.feat{ border-color:rgba(255,196,110,.28); }
+  .meta{ padding:16px 18px 9px; }
+  .meta h3{ font-weight:600; font-size:1.08rem; margin:0 0 6px; letter-spacing:.02em;
+    display:flex; gap:9px; align-items:center; flex-wrap:wrap; }
+  .badge{ font-size:.56rem; letter-spacing:.14em; text-transform:uppercase; color:#1a1205;
+    background:var(--gold); border-radius:20px; padding:3px 8px; font-weight:700; }
+  .badge.alt{ background:var(--accent); color:#08121f; }
+  .meta p{ margin:0; color:var(--mut); font-size:.82rem; line-height:1.55; }
+  .stagebox{ position:relative; margin:8px 14px 14px; border-radius:11px; overflow:hidden;
+    background:#000; border:1px solid var(--line); aspect-ratio:16/10; }
+  .stagebox iframe{ position:absolute; inset:0; width:100%; height:100%; border:0; }
+  .play{ position:absolute; inset:0; display:flex; flex-direction:column; gap:11px; align-items:center;
+    justify-content:center; cursor:pointer;
+    background:radial-gradient(120% 120% at 70% 24%,#1a140b,#070707 62%); }
+  .ring{ width:54px; height:54px; border-radius:50%; border:1.5px solid var(--gold); display:flex;
+    align-items:center; justify-content:center; color:var(--gold);
+    box-shadow:0 0 34px rgba(255,196,110,.22); transition:.25s; }
+  .play:hover .ring{ box-shadow:0 0 50px rgba(255,196,110,.4); transform:scale(1.06); }
+  .ring svg{ width:20px; height:20px; margin-left:3px; }
+  .play span{ font-size:.7rem; letter-spacing:.18em; text-transform:uppercase; color:var(--mut); }
+  .actions{ padding:0 18px 16px; }
+  .actions a{ font-size:.73rem; letter-spacing:.1em; text-transform:uppercase; text-decoration:none;
+    color:var(--mut); border:1px solid var(--line); padding:7px 12px; border-radius:8px; transition:.2s; }
+  .actions a:hover{ color:var(--gold); border-color:rgba(255,196,110,.4); }
+  footer{ text-align:center; color:var(--mut); font-size:.78rem; line-height:1.7;
+    padding:clamp(50px,8vw,90px) 20px 60px; max-width:60ch; margin:0 auto; }
+  footer code{ color:var(--gold); }
+</style>
+</head>
+<body>
+  <header>
+    <p class="kicker">Vrastislav Vender · personal brand</p>
+    <h1><span class="lit">VRA</span><b>STISLAV</b> · <span class="lit">VEN</span><b>DER</b></h1>
+    <p class="sub">Every design study in one place. The concept stays constant across all of them: a warm
+      <b>beam of light from the dark</b> illuminates the name, with <b>VRA</b> (VRA·stislav) and
+      <b>VEN</b> (VEN·der) lit so they read <b>VRAVEN</b> — the rest kept in shadow. Click any card to play it
+      inline, or open it full-screen.</p>
+    <p class="note">Contact across all variants is placeholder — <code>hello@vraven.com</code> /
+      <code>+420&nbsp;123&nbsp;456&nbsp;789</code> — swap in the real details before going live.</p>
+  </header>
+
+  <section class="group">
+    <div class="grouphead"><h2>Featured</h2><p>The current redesign — WebGL volumetric light + editorial type.</p></div>
+    <div class="grid" id="grid-feat"></div>
+  </section>
+
+  <section class="group">
+    <div class="grouphead"><h2>Cinematic studies</h2><p>Earlier directions exploring the light-on-name idea.</p></div>
+    <div class="grid" id="grid-var"></div>
+  </section>
+
+  <section class="group">
+    <div class="grouphead"><h2>Cave-light positions</h2><p>One volumetric shaft, six ways to place the name in it.</p></div>
+    <div class="grid" id="grid-cave"></div>
+  </section>
+
+  <footer>
+    A name brought into the light. Pick a direction and I'll refine it — tune the beam, adjust the
+    composition, drop in real copy and contact details, and promote your favourite to the live homepage.
+  </footer>
+
+<script>
+  const FEAT = [
+    { t:"Full site", b:"redesign", f:"vraven-site.html",
+      d:"The one-page scrollable site: WebGL god-ray hero → kinetic statement → about → work → contact. Clash Display type, GSAP + Lenis motion." },
+    { t:"Minimal", b:"redesign", f:"vraven-minimal.html",
+      d:"The abstract cut — just the lit name, one evocative line, and contact. Same volumetric hero, nothing else." },
+    { t:"Original (CSS light)", b:"baseline", f:"index.html",
+      d:"The fully-offline CSS-gradient version that started it all. Now serves as the no-WebGL / reduced-motion fallback." },
+  ];
+  const VAR = [
+    { t:"Editor's Pick", b:"favourite", f:"variants/editors-pick.html", d:"The most resolved of the early studies — balanced beam, clean ignite, strong negative space." },
+    { t:"Cathedral", f:"variants/cathedral.html", d:"Tall shafts of light raking down a dark hall, the name caught in the cross-light." },
+    { t:"Lighthouse", f:"variants/lighthouse.html", d:"A single sweeping beam that rotates across the name like a lighthouse lamp." },
+    { t:"Aurora", f:"variants/aurora.html", d:"Soft ribbons of cold-to-warm light drifting behind the wordmark." },
+    { t:"Ink & Gold", f:"variants/ink-gold.html", d:"High-contrast black ink with gold leaf catching the light on VRA/VEN." },
+    { t:"Laser Scan", f:"variants/laser-scan.html", d:"A thin scanning line that paints the letters as it passes — technical, precise." },
+    { t:"Stage", f:"variants/stage.html", d:"Theatrical spotlight pooling on the name as if on a darkened stage." },
+    { t:"Raven", f:"variants/raven.html", d:"Leans into the RAVEN in VRAVEN — darker, sharper, a touch of menace." },
+    { t:"Minimal (early)", f:"variants/minimal.html", d:"The first pared-back take — type and a single soft glow." },
+    { t:"Aurora (writing)", f:"aurora-writing.html", d:"An aurora variant where the light writes the letters into being." },
+    { t:"Sunbeam", f:"vraven-sunbeam.html", d:"Warm sunbeam from the corner pooling on the name — a tuning snapshot of the original." },
+    { t:"Diagonal", f:"vraven-diagonal.html", d:"Diagonal rays crossing the frame, the name set against the grain of the light." },
+  ];
+  const CAVE = [
+    { t:"Cave — index", b:"sub-gallery", f:"cave/index.html", d:"The six cave-light placements together, each click-to-play." },
+    { t:"Off-Axis", f:"cave/off-axis.html", d:"Beam isolated upper-right; name stacked in shadow lower-left, VRA/VEN glowing. Asymmetric, cinematic." },
+    { t:"Monolith", f:"cave/monolith.html", d:"A huge VRAVEN; the shaft crashes onto the letter-tops, fading into shadow below. Monumental." },
+    { t:"Down the Shaft", f:"cave/shaft-stack.html", d:"VRAVEN stacked vertically, descending the centre of the beam — the light's content is the word itself." },
+    { t:"The Figure", f:"cave/figure.html", d:"A small VRAVEN stands in the pool at the foot of a towering shaft; full name dim beneath." },
+    { t:"Pooled at the Foot", f:"cave/pool.html", d:"The full name sits low in the pool of light; VRA/VEN lit, the rest dim." },
+    { t:"Caught Mid-Beam", f:"cave/mid-beam.html", d:"Name suspended in the shaft, the bright core washing across the letters." },
+  ];
+
+  const ico = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+  function render(items, mountId, featured){
+    const grid = document.getElementById(mountId);
+    items.forEach(c => {
+      const card = document.createElement('article');
+      card.className = 'card' + (featured ? ' feat' : '');
+      const badge = c.b ? ' <span class="badge'+(featured?'':' alt')+'">'+c.b+'</span>' : '';
+      card.innerHTML =
+        '<div class="meta"><h3>'+c.t+badge+'</h3><p>'+c.d+'</p></div>'+
+        '<div class="stagebox"><div class="play"><div class="ring">'+ico+'</div><span>click to play</span></div></div>'+
+        '<div class="actions"><a href="'+c.f+'" target="_blank" rel="noopener">Open full ↗</a></div>';
+      const box = card.querySelector('.stagebox');
+      card.querySelector('.play').addEventListener('click', () => {
+        const fr = document.createElement('iframe');
+        fr.src = c.f; fr.title = c.t; fr.loading = 'lazy';
+        box.innerHTML=''; box.appendChild(fr);
+      });
+      grid.appendChild(card);
+    });
+  }
+  render(FEAT, 'grid-feat', true);
+  render(VAR, 'grid-var', false);
+  render(CAVE, 'grid-cave', false);
+</script>
+</body>
+</html>

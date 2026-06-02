@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vrastislav Vender</title>
+<style>
+  /* ============================================================
+     VRASTISLAV VENDER — "Off-Axis"
+     A volumetric shaft of neutral-white light pours down from a
+     high opening in the upper-right of a near-black cave, fanning
+     out to a glowing pool at lower-right. The name sits in the
+     lower-left third; the letters spelling VRAVEN (V R A + V E N)
+     ignite, the rest stay dim-but-present. Reveal animates only
+     transform / opacity / filter. Zero external requests.
+     ============================================================ */
+
+  :root{
+    --light: #f8f8f8;            /* neutral white (B = G = R) */
+    --cave:  #050505;            /* near-black cave */
+    --dim:   #2c2c2e;            /* dim, in-shadow letter colour */
+  }
+
+  *{ margin:0; padding:0; box-sizing:border-box; }
+
+  html,body{ height:100%; background:var(--cave); }
+
+  body{
+    /* System fonts only — no external requests. */
+    font-family: "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
+    color:#fff;
+    overflow:hidden;
+    /* Base cave wash: dark, with a faint neutral lift toward the
+       upper-right where the opening is, so it reads as a cave mouth. */
+    background:
+      radial-gradient(120% 90% at 78% 6%, #171719 0%, #0b0b0c 34%, #050505 64%),
+      var(--cave);
+  }
+
+  /* The whole scene. Animation state is driven by the .play class
+     toggled on this element (replay = remove, reflow, re-add). */
+  .scene{
+    position:fixed;
+    inset:0;
+    overflow:hidden;
+  }
+
+  /* ---- CAVE FRAMING -------------------------------------------------
+     A heavy vignette + dark corner gradients to frame the light and
+     give rough, deep-shadow cave edges. Kept BELOW the screen-blended
+     light (z-index 6 < light's 7) so it darkens only the cave edges /
+     left negative space and never crushes the opening or the pool. */
+  .cave-vignette{
+    position:absolute; inset:0;
+    pointer-events:none;
+    background:
+      radial-gradient(140% 120% at 76% 30%,
+        rgba(0,0,0,0) 30%, rgba(0,0,0,.55) 66%, rgba(0,0,0,.97) 100%),
+      linear-gradient(90deg, rgba(0,0,0,.92) 0%, rgba(0,0,0,0) 26%),
+      linear-gradient(180deg,
+        rgba(0,0,0,.85) 0%, rgba(0,0,0,0) 18%,
+        rgba(0,0,0,0) 72%, rgba(0,0,0,.92) 100%);
+    z-index:6;
+  }
+
+  /* ====================================================================
+     THE LIGHT
+     All light layers use mix-blend-mode:screen so they add luminance.
+     Because .light is its own stacking context, raising it ABOVE the
+     vignette (z-index 7) does not change how the light layers blend
+     with each other — it only stops the vignette from painting over
+     the hero light. Opening + pool stay bright. Text (z-index 8) wins.
+     ==================================================================== */
+  .light{
+    position:absolute; inset:0;
+    pointer-events:none;
+    z-index:7;
+  }
+
+  /* The OPENING — a small hot bright neutral spot high in the
+     upper-right where daylight breaks into the cave. */
+  .opening{
+    position:absolute;
+    top:-4%; right:14%;
+    width:26vmin; height:18vmin;
+    background:
+      radial-gradient(closest-side,
+        rgba(255,255,255,1) 0%,
+        rgba(255,255,255,.85) 22%,
+        rgba(248,248,248,.35) 55%,
+        rgba(248,248,248,0) 100%);
+    filter: blur(6px);
+    mix-blend-mode:screen;
+    transform: scale(.55);
+    opacity:0;
+  }
+
+  /* The SHAFT — a trapezoid (narrow at the opening, wide at the floor)
+     built with clip-path so we can scaleY it open from the top. It tilts
+     slightly so the fall is diagonal-ish toward lower-right. */
+  .shaft{
+    position:absolute;
+    top:-6%; right:2%;
+    width:64vmin; height:118vh;
+    transform-origin: 78% 0%;          /* pivot at the opening (top) */
+    transform: rotate(7deg) scaleY(0);
+    opacity:0;
+    mix-blend-mode:screen;
+  }
+  /* Wide soft cone of the shaft: narrow at top, fanning wide at floor. */
+  .shaft .beam{
+    position:absolute; inset:0;
+    clip-path: polygon(40% 0%, 60% 0%, 100% 100%, 0% 100%);
+    background:
+      linear-gradient(180deg,
+        rgba(255,255,255,.95) 0%,
+        rgba(250,250,250,.55) 30%,
+        rgba(248,248,248,.28) 60%,
+        rgba(248,248,248,.12) 85%,
+        rgba(248,248,248,0) 100%);
+    filter: blur(10px);
+  }
+  /* Hot bright inner core — thinner trapezoid, most intense at top. */
+  .shaft .core{
+    position:absolute; inset:0;
+    clip-path: polygon(46% 0%, 54% 0%, 74% 100%, 26% 100%);
+    background:
+      linear-gradient(180deg,
+        rgba(255,255,255,1) 0%,
+        rgba(255,255,255,.7) 25%,
+        rgba(255,255,255,.3) 60%,
+        rgba(255,255,255,0) 100%);
+    filter: blur(5px);
+  }
+  /* GOD-RAY striations — several thin angled slivers via a repeating
+     gradient, clipped to the shaft trapezoid. Smooth, NO particles. */
+  .shaft .rays{
+    position:absolute; inset:0;
+    clip-path: polygon(42% 0%, 58% 0%, 96% 100%, 4% 100%);
+    background:
+      repeating-linear-gradient(91deg,
+        rgba(255,255,255,0) 0px,
+        rgba(255,255,255,0) 9px,
+        rgba(255,255,255,.10) 13px,
+        rgba(255,255,255,0) 20px);
+    filter: blur(3px);
+    opacity:.7;
+  }
+  /* Soft volumetric HAZE — a big blurred neutral glow filling the volume. */
+  .shaft .haze{
+    position:absolute; inset:0;
+    clip-path: polygon(36% 0%, 64% 0%, 108% 100%, -8% 100%);
+    background:
+      radial-gradient(60% 70% at 50% 18%,
+        rgba(248,248,248,.5) 0%, rgba(248,248,248,0) 70%);
+    filter: blur(30px);
+  }
+
+  /* The POOL of neutral light on the cave floor at lower-right where the
+     shaft lands. Radial glow, fades up with the shaft's arrival. */
+  .pool{
+    position:absolute;
+    bottom:-12%; right:6%;
+    width:70vmin; height:46vmin;
+    background:
+      radial-gradient(closest-side,
+        rgba(255,255,255,.85) 0%,
+        rgba(248,248,248,.4) 34%,
+        rgba(248,248,248,.12) 64%,
+        rgba(248,248,248,0) 100%);
+    filter: blur(16px);
+    mix-blend-mode:screen;
+    transform: scale(.4);
+    opacity:0;
+  }
+
+  /* ====================================================================
+     THE NAME — lower-left third, horizontal.
+     Each WORD is an inline-block, nowrap span so VRA never wraps away
+     from STISLAV (and VEN from DER). Per-letter .lit / .dim classes
+     drive ignition (NOT a positional gradient).
+     ==================================================================== */
+  .name-wrap{
+    position:absolute;
+    left: clamp(20px, 6vw, 110px);
+    bottom: clamp(40px, 12vh, 130px);
+    z-index:8;                 /* above the cave vignette and the light */
+    max-width: 62vw;
+  }
+
+  h1.name{
+    font-weight:800;
+    line-height:.92;
+    letter-spacing:.01em;
+    font-size: clamp(2.4rem, 11vw, 8.8rem);
+    text-transform:uppercase;
+    transform: translateY(14px);   /* eases up gently as light arrives */
+    opacity:0;
+  }
+  .word{
+    display:inline-block;
+    white-space:nowrap;        /* keep each word's letters together */
+  }
+  /* A real space between the .word spans (in the markup) separates the
+     two words AND yields clean "VRASTISLAV VENDER" on copy/select. */
+
+  h1.name .ltr{
+    display:inline-block;
+    /* Every letter is the same neutral ink; brightness() controls how
+       lit/dim it appears, so ONLY filter animates (allowed property). */
+    color:var(--light);
+    transition: filter 900ms ease;
+  }
+  /* DIM letters — present but pushed deep into shadow via brightness. */
+  h1.name .dim{
+    filter: brightness(.20);
+  }
+  /* LIT letters — start dim (brightness), ignite to full bright + glow.
+     Matching filter-function lists so interpolation stays smooth. */
+  h1.name .lit{
+    filter: brightness(.20)
+            drop-shadow(0 0 0 rgba(255,255,255,0))
+            drop-shadow(0 0 0 rgba(248,248,248,0));
+  }
+
+  /* ---- CONTACT — refined, fades in last. */
+  .contact{
+    position:absolute;
+    left: clamp(20px, 6vw, 110px);
+    bottom: clamp(16px, 5vh, 52px);
+    z-index:8;
+    font-size: clamp(.72rem, 1.5vw, .92rem);
+    letter-spacing:.16em;
+    text-transform:uppercase;
+    opacity:0;
+    transform: translateY(8px);
+    font-style:normal;
+  }
+  .contact a{
+    color:#cfcfca;
+    text-decoration:none;
+    border-bottom:1px solid rgba(255,255,255,.18);
+    padding-bottom:2px;
+    transition:opacity .3s ease;   /* hover via opacity only */
+  }
+  .contact a:hover{ opacity:.7; }
+  .contact .sep{ color:#55554f; margin:0 .7em; }
+
+  /* ---- REPLAY control. */
+  .replay{
+    position:absolute;
+    top: clamp(14px, 3vh, 26px);
+    left: clamp(16px, 4vw, 34px);
+    z-index:9;
+    background:transparent;
+    border:1px solid rgba(255,255,255,.22);
+    color:#d7d7d2;
+    font:inherit;
+    font-size:.66rem;
+    letter-spacing:.22em;
+    text-transform:uppercase;
+    padding:.55em 1.1em;
+    border-radius:2px;
+    cursor:pointer;
+    opacity:0;
+    transition:opacity .5s ease;
+  }
+  .replay:hover{ opacity:.7; }
+  .replay:focus-visible{ outline:2px solid rgba(255,255,255,.6); outline-offset:3px; }
+
+  /* ====================================================================
+     ANIMATION — gated behind no-preference. The .play class restarts it.
+     Sequence: black hold → opening flares → shaft pours down → name eases
+     up → VRAVEN ignites where the light touches → pool settles →
+     contact + replay fade in.
+     ==================================================================== */
+  @media (prefers-reduced-motion: no-preference){
+    .scene.play .opening{ animation: openFlare 1400ms ease-out 600ms forwards; }
+    .scene.play .shaft  { animation: shaftPour 1600ms cubic-bezier(.22,.61,.36,1) 850ms forwards; }
+    .scene.play .pool   { animation: poolSettle 1500ms ease-out 1700ms forwards; }
+    .scene.play h1.name { animation: nameRise 1300ms cubic-bezier(.22,.61,.36,1) 1500ms forwards; }
+    .scene.play h1.name .lit{ animation: ignite 1100ms ease-out 2150ms forwards; }
+    .scene.play .contact{ animation: fadeUp 1200ms ease-out 3500ms forwards; }
+    .scene.play .replay { animation: fadeIn 900ms ease 3900ms forwards; }
+  }
+
+  /* Reduced motion (or no .play): show the final RESTING state directly. */
+  @media (prefers-reduced-motion: reduce){
+    .opening{ opacity:1; transform:scale(1); }
+    .shaft  { opacity:1; transform:rotate(7deg) scaleY(1); }
+    .pool   { opacity:1; transform:scale(1); }
+    h1.name { opacity:1; transform:none; }
+    h1.name .lit{
+      filter: brightness(1.35)
+              drop-shadow(0 0 14px rgba(255,255,255,.75))
+              drop-shadow(0 0 34px rgba(248,248,248,.5));
+    }
+    .contact{ opacity:1; transform:none; }
+    .replay { opacity:1; }
+  }
+
+  @keyframes openFlare{
+    from{ opacity:0; transform:scale(.55); }
+    to  { opacity:1; transform:scale(1); }
+  }
+  @keyframes shaftPour{
+    from{ opacity:0; transform:rotate(7deg) scaleY(0); }
+    40% { opacity:1; }
+    to  { opacity:1; transform:rotate(7deg) scaleY(1); }
+  }
+  @keyframes poolSettle{
+    from{ opacity:0; transform:scale(.4); }
+    to  { opacity:1; transform:scale(1); }
+  }
+  @keyframes nameRise{
+    from{ opacity:0; transform:translateY(14px); }
+    to  { opacity:1; transform:translateY(0); }
+  }
+  /* Ignite: dim → bright neutral white with a neutral-white glow.
+     Matching filter-function lists (brightness + 2 drop-shadows) so the
+     interpolation is smooth. Only filter animates. */
+  @keyframes ignite{
+    from{
+      filter: brightness(.20)
+              drop-shadow(0 0 0 rgba(255,255,255,0))
+              drop-shadow(0 0 0 rgba(248,248,248,0));
+    }
+    to{
+      filter: brightness(1.35)
+              drop-shadow(0 0 14px rgba(255,255,255,.75))
+              drop-shadow(0 0 34px rgba(248,248,248,.5));
+    }
+  }
+  @keyframes fadeUp{
+    from{ opacity:0; transform:translateY(8px); }
+    to  { opacity:1; transform:translateY(0); }
+  }
+  @keyframes fadeIn{ from{opacity:0;} to{opacity:1;} }
+</style>
+</head>
+<body>
+  <main class="scene" id="scene" aria-label="Vrastislav Vender — landing">
+
+    <!-- THE LIGHT (decorative) -->
+    <div class="light" aria-hidden="true">
+      <div class="opening"></div>
+      <div class="shaft">
+        <div class="haze"></div>
+        <div class="beam"></div>
+        <div class="rays"></div>
+        <div class="core"></div>
+      </div>
+      <div class="pool"></div>
+    </div>
+
+    <!-- CAVE FRAMING — heavy vignette + dark edges, below the light. -->
+    <div class="cave-vignette" aria-hidden="true"></div>
+
+    <!-- THE NAME — real selectable text. aria-label gives the full name.
+         Lit letters spell VRAVEN: V R A (Vrastislav) + V E N (Vender). -->
+    <div class="name-wrap">
+      <h1 class="name" aria-label="Vrastislav Vender">
+        <span class="word"><!--
+          --><span class="ltr lit">V</span><span class="ltr lit">R</span><span class="ltr lit">A</span><!--
+          --><span class="ltr dim">S</span><span class="ltr dim">T</span><span class="ltr dim">I</span><span class="ltr dim">S</span><span class="ltr dim">L</span><span class="ltr dim">A</span><span class="ltr dim">V</span><!--
+        --></span> <span class="word"><!--
+          --><span class="ltr lit">V</span><span class="ltr lit">E</span><span class="ltr lit">N</span><!--
+          --><span class="ltr dim">D</span><span class="ltr dim">E</span><span class="ltr dim">R</span><!--
+      --></span></h1>
+    </div>
+
+    <!-- CONTACT — fades in last. -->
+    <address class="contact">
+      <a href="mailto:hello@vraven.com">hello@vraven.com</a>
+      <span class="sep" aria-hidden="true">/</span>
+      <a href="tel:+420123456789">+420&nbsp;123&nbsp;456&nbsp;789</a>
+    </address>
+
+    <button class="replay" id="replay" type="button" aria-label="Replay the light reveal">Replay</button>
+  </main>
+
+  <script>
+  (function(){
+    "use strict";
+    var scene  = document.getElementById('scene');
+    var replay = document.getElementById('replay');
+
+    var reduce = window.matchMedia &&
+                 window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    // Restart the sequence by removing .play, forcing reflow, re-adding it.
+    function play(){
+      if (reduce) return;        // reduced-motion shows resting state via CSS
+      scene.classList.remove('play');
+      void scene.offsetWidth;    // force reflow so animations re-trigger
+      scene.classList.add('play');
+    }
+
+    // Initial run, after a tiny defer so the black hold reads as intentional.
+    if (!reduce){
+      requestAnimationFrame(function(){ requestAnimationFrame(play); });
+    }
+
+    // Replay on the control, or anywhere in the scene (click/tap).
+    replay.addEventListener('click', function(e){ e.stopPropagation(); play(); });
+    scene.addEventListener('click', function(){ play(); });
+  })();
+  </script>
+</body>
+</html>

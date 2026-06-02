@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en" class="no-js">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vrastislav Vender — VRAVEN</title>
+<meta name="description" content="VRAVEN — the personal site of Vrastislav Vender. A name drawn out of the dark by a single beam of light." />
+
+<script>
+  (function () {
+    var d = document.documentElement;
+    d.classList.remove('no-js');
+    try {
+      if (matchMedia('(prefers-reduced-motion: reduce)').matches) d.classList.add('reduce');
+      else d.classList.add('intro');
+    } catch (e) {}
+  })();
+</script>
+
+<link rel="preconnect" href="https://api.fontshare.com" crossorigin />
+<link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=clash-display@400,600,700&f[]=satoshi@400,500,700&display=swap" />
+<link rel="stylesheet" href="assets/tokens.css" />
+
+<style>
+  /* =====================  SITE-SPECIFIC LAYOUT  ===================== */
+
+  /* slim header, hidden until past the hero */
+  .site-header {
+    position: fixed; inset: 0 0 auto 0; z-index: 20;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1rem var(--gutter);
+    background: linear-gradient(var(--bg-0), transparent);
+    opacity: 0; transform: translateY(-100%);
+    transition: opacity .5s var(--ease-out), transform .5s var(--ease-out);
+    pointer-events: none;
+  }
+  .site-header.show { opacity: 1; transform: none; pointer-events: auto; }
+  .site-header .brand { font-family: var(--font-display); font-weight: 700; letter-spacing: .02em; color: var(--ink); }
+  .site-header .brand b { color: var(--gold); font-weight: 700; }
+  .site-header .nav-contact { font-size: var(--step--1); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-dim); border-bottom: 1px solid transparent; transition: color .25s, border-color .25s; }
+  .site-header .nav-contact:hover { color: var(--gold); border-color: rgba(var(--rgb-gold), .6); }
+
+  /* hero: in the full site use a scroll cue (centre) + controls (right) */
+  .hero .tagline { margin-top: clamp(1.6rem, 4vh, 2.6rem); margin-inline: auto; text-align: center; }
+  .hero .hero-controls { left: auto; right: var(--gutter); transform: none; }
+
+  /* STATEMENT */
+  .statement-line {
+    font-family: var(--font-display); font-weight: 600;
+    font-size: clamp(2.1rem, 1.3rem + 4.4vw, 5.4rem);
+    line-height: 1.05; letter-spacing: -0.01em; color: var(--ink);
+    max-width: 18ch;
+  }
+  .statement-line em { font-style: normal; color: var(--gold); }
+  .split-line { overflow: hidden; }   /* clip word slide-up */
+
+  /* ABOUT */
+  .about-grid { display: grid; gap: clamp(2rem, 5vw, 5rem); grid-template-columns: 1fr; align-items: center; }
+  @media (min-width: 860px) { .about-grid { grid-template-columns: 0.85fr 1fr; } }
+  .portrait {
+    position: relative; aspect-ratio: 4/5; border-radius: 14px; overflow: hidden;
+    background:
+      radial-gradient(120% 90% at 100% 0%, rgba(var(--rgb-gold), .28), rgba(var(--rgb-edge), .08) 40%, transparent 70%),
+      linear-gradient(160deg, #15130d, #0b0a0c);
+    border: 1px solid rgba(var(--rgb-gold), .14);
+    display: grid; place-items: center;
+  }
+  .portrait span { font-size: var(--step--1); letter-spacing: .22em; text-transform: uppercase; color: var(--ink-dim); }
+  .about-copy h2 { font-family: var(--font-display); font-weight: 600; font-size: var(--step-2); line-height: 1.1; margin-bottom: 1rem; color: var(--ink); max-width: 18ch; }
+  .about-copy p { color: var(--ink-dim); max-width: 46ch; margin-bottom: 1rem; }
+  .about-copy p .accent { color: var(--ink); }
+
+  /* WORK / WHAT I DO */
+  .work-head { display: flex; justify-content: space-between; align-items: end; gap: 1rem; margin-bottom: clamp(1.5rem, 4vh, 3rem); flex-wrap: wrap; }
+  .work-head h2 { font-family: var(--font-display); font-weight: 600; font-size: var(--step-2); color: var(--ink); }
+  .work-list { list-style: none; }
+  .work-list li {
+    display: grid; grid-template-columns: auto 1fr; gap: 0.4rem 1.5rem; align-items: baseline;
+    padding: clamp(1.3rem, 3vw, 2.2rem) 0; border-top: 1px solid rgba(255,255,255,.08);
+    transition: padding-left .35s var(--ease-out);
+  }
+  @media (min-width: 760px) { .work-list li { grid-template-columns: 4rem 1fr 1.1fr; align-items: center; } }
+  .work-list li:last-child { border-bottom: 1px solid rgba(255,255,255,.08); }
+  .work-list li:hover { padding-left: 0.8rem; }
+  .work-list .num { font-family: var(--font-text); font-size: var(--step--1); color: var(--gold); letter-spacing: .1em; }
+  .work-list .work-title { font-family: var(--font-display); font-weight: 600; font-size: var(--step-1); color: var(--ink); transition: color .25s; }
+  .work-list li:hover .work-title { color: var(--gold); }
+  .work-list .work-desc { color: var(--ink-dim); font-size: var(--step-0); max-width: 42ch; }
+
+  /* CONTACT */
+  .contact { text-align: center; }
+  .contact-inner { display: flex; flex-direction: column; align-items: center; gap: clamp(1.4rem, 4vh, 2.4rem); }
+  .contact-head { font-family: var(--font-display); font-weight: 600; font-size: var(--step-3); line-height: 1.02; letter-spacing: -0.01em; max-width: 16ch; color: var(--ink); }
+  .contact-head em { font-style: normal; color: var(--gold); }
+  .contact .contact-row { justify-content: center; margin-top: 0.5rem; }
+
+  /* a faint warm beam behind the contact section to bookend the theme */
+  .contact::before {
+    content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+    background: radial-gradient(90% 70% at 78% 12%, rgba(var(--rgb-gold), .12), rgba(var(--rgb-edge), .04) 36%, transparent 66%);
+  }
+
+  /* FOOTER */
+  .footer { border-top: 1px solid rgba(255,255,255,.08); padding: 2.2rem 0; }
+  .footer-inner { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; font-size: var(--step--1); color: var(--ink-dim); letter-spacing: .04em; }
+  .footer-inner .brand { font-family: var(--font-display); font-weight: 700; color: var(--ink); letter-spacing: .04em; }
+  .footer .totop { background: none; border: none; color: var(--ink-dim); cursor: pointer; font: inherit; letter-spacing: .14em; text-transform: uppercase; transition: color .25s; }
+  .footer .totop:hover { color: var(--gold); }
+</style>
+</head>
+
+<body>
+  <!-- slim header (reveals after hero) -->
+  <header class="site-header">
+    <a class="brand" href="#top"><b>VRA</b>VEN</a>
+    <a class="nav-contact" href="#contact">Contact</a>
+  </header>
+
+  <main id="top">
+
+    <!-- ===================== HERO ===================== -->
+    <section class="hero" id="hero">
+      <canvas class="hero-gl" aria-hidden="true"></canvas>
+      <div class="hero-fallback" aria-hidden="true">
+        <div class="fb-atmos"></div><div class="fb-rays"></div><div class="fb-pool"></div>
+      </div>
+      <div class="hero-vignette" aria-hidden="true"></div>
+
+      <div class="hero-content">
+        <h1 class="wordmark" aria-label="Vrastislav Vender">
+          <span class="word" aria-hidden="true"><span class="lit"><span class="l i1">V</span><span class="l i2">R</span><span class="l i3">A</span></span><span class="dim">STISLAV</span></span>
+          <span class="word" aria-hidden="true"><span class="lit"><span class="l i4">V</span><span class="l i5">E</span><span class="l i6">N</span></span><span class="dim">DER</span></span>
+        </h1>
+        <!-- PLACEHOLDER tagline -->
+        <p class="tagline">Designer &amp; maker, working where <span class="accent">light meets form</span>.</p>
+      </div>
+
+      <div class="grain" aria-hidden="true"></div>
+
+      <div class="scroll-cue" aria-hidden="true">Scroll</div>
+      <nav class="hero-controls" aria-label="Animation controls">
+        <button type="button" onclick="window.VRAVEN&&VRAVEN.hero.skip()">Skip</button>
+        <button type="button" onclick="window.VRAVEN&&VRAVEN.hero.replay()">Replay</button>
+      </nav>
+    </section>
+
+    <!-- ===================== STATEMENT ===================== -->
+    <section class="statement section-pad">
+      <div class="wrap">
+        <p class="eyebrow" data-reveal>The idea</p>
+        <!-- PLACEHOLDER statement -->
+        <h2 class="statement-line" data-split>Two names, one light. <em>VRAVEN</em> — the six letters hidden in VRAstislav VENder, drawn out of the dark.</h2>
+      </div>
+    </section>
+
+    <!-- ===================== ABOUT ===================== -->
+    <section class="about section-pad">
+      <div class="wrap about-grid">
+        <div class="about-media" data-reveal>
+          <div class="portrait"><span>Portrait</span></div>
+        </div>
+        <div class="about-copy">
+          <p class="eyebrow" data-reveal>About</p>
+          <!-- PLACEHOLDER bio -->
+          <h2 data-reveal>I make things that are meant to be looked at twice.</h2>
+          <p data-reveal><span class="accent">Vrastislav Vender</span> is a placeholder bio. Swap this for a real introduction — a sentence or two on who he is, what he cares about, and the work he wants more of.</p>
+          <p data-reveal>A second line for context: background, the kind of projects that light him up, and an invitation to keep reading. Keep it human and brief.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== WHAT I DO ===================== -->
+    <section class="work section-pad">
+      <div class="wrap">
+        <div class="work-head">
+          <h2 data-reveal>What I do</h2>
+          <p class="eyebrow" data-reveal>Selected disciplines</p>
+        </div>
+        <ul class="work-list">
+          <li data-reveal><span class="num">01</span><span class="work-title">Brand &amp; Identity</span><span class="work-desc">Placeholder — the craft of names, marks, and the systems that hold them together.</span></li>
+          <li data-reveal><span class="num">02</span><span class="work-title">Art Direction</span><span class="work-desc">Placeholder — setting the tone, light, and feeling a project lives inside.</span></li>
+          <li data-reveal><span class="num">03</span><span class="work-title">Interaction &amp; Web</span><span class="work-desc">Placeholder — bringing it to life on screen, with motion that means something.</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ===================== CONTACT ===================== -->
+    <section class="contact section-pad" id="contact">
+      <div class="wrap contact-inner">
+        <p class="eyebrow" data-reveal>Contact</p>
+        <!-- PLACEHOLDER contact -->
+        <h2 class="contact-head" data-reveal>Let’s make something that <em>catches the light</em>.</h2>
+        <a class="cta" href="mailto:hello@vraven.com" data-reveal data-magnetic>Start a conversation</a>
+        <div class="contact-row" data-reveal>
+          <a href="mailto:hello@vraven.com">hello@vraven.com</a>
+          <a href="tel:+420123456789">+420&nbsp;123&nbsp;456&nbsp;789</a>
+          <a href="#" rel="noopener">Instagram</a>
+          <a href="#" rel="noopener">LinkedIn</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===================== FOOTER ===================== -->
+  <footer class="footer">
+    <div class="wrap footer-inner">
+      <span class="brand">VRAVEN</span>
+      <span>© 2026 Vrastislav Vender — placeholder</span>
+      <a class="totop" href="#top">Back to top ↑</a>
+    </div>
+  </footer>
+
+  <!-- libraries (UMD; order matters, defer preserves it) -->
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/gsap.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/ScrollTrigger.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/SplitText.min.js"></script>
+  <script defer src="https://unpkg.com/lenis@1.3.23/dist/lenis.min.js"></script>
+  <script defer src="assets/hero.js"></script>
+  <script defer src="assets/motion.js"></script>
+</body>
+</html>

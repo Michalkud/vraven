@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vrastislav Vender</title>
+<style>
+  /* ============================================================
+     VRAVEN — Diagonal Sunlight
+     A volumetric, sun-coloured beam shines in diagonally from the
+     upper-right. The full name VRASTISLAV VENDER lies ALONG the
+     beam; the six letters that spell VRAVEN (VRA + VEN) are
+     illuminated warm-gold, while the remaining letters stay present
+     but dim, kept in shadow. No particles — pure volumetric light.
+     ============================================================ */
+
+  :root{
+    --bg:#07050a;
+    --sun-core:255, 246, 222;       /* hot white-gold centre  */
+    --sun:255, 196, 110;            /* golden amber           */
+    --sun-deep:255, 150, 64;        /* deep orange edge       */
+    --lit:#fff4dc;                  /* illuminated letter      */
+    --dim:rgba(150,120,86,.30);     /* warm shadow (unlit)     */
+    --ANGLE:-17deg;                 /* the diagonal            */
+  }
+
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ height:100%; }
+  body{
+    background:
+      radial-gradient(140% 120% at 78% 18%, rgba(60,34,12,.55) 0%, rgba(7,5,10,0) 55%),
+      var(--bg);
+    color:var(--lit);
+    font-family:"Cormorant Garamond", Georgia, "Times New Roman", serif;
+    overflow:hidden;
+    cursor:pointer;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .vignette{ position:fixed; inset:0; z-index:1; pointer-events:none;
+    background:radial-gradient(125% 125% at 62% 40%, rgba(7,5,10,0) 34%, rgba(5,3,8,.9) 100%); }
+
+  /* ---- the diagonal stage: light + name share one rotation,
+          so the name is always aligned with the beam ---- */
+  .hero{ position:fixed; inset:0; z-index:2; display:flex;
+    align-items:center; justify-content:center; }
+
+  .diagonal{
+    position:relative;
+    transform:rotate(var(--ANGLE));
+    font-size:clamp(1.35rem, 5.4vw, 3.7rem);   /* drives the em units */
+  }
+
+  /* ---------- volumetric sun beam (brightest at the right) ---------- */
+  .beam{ position:absolute; top:50%; left:50%; mix-blend-mode:screen;
+    pointer-events:none; opacity:0;
+    transition:opacity 1.6s ease, transform 1.8s cubic-bezier(.2,.7,.2,1); }
+
+  /* broad warm haze the name floats in */
+  .haze{ width:40em; height:6.2em;
+    transform:translate(-50%,-50%) translateX(4em) scaleX(.82);
+    transform-origin:64% 50%;
+    background:linear-gradient(to left,
+      rgba(var(--sun),0) 4%,
+      rgba(var(--sun),.34) 20%,
+      rgba(var(--sun-deep),.16) 40%,
+      rgba(var(--sun),.10) 58%,
+      rgba(var(--sun),0) 86%);
+    filter:blur(2.4em); }
+
+  /* fanned god-ray shafts for volume */
+  .ray{ width:34em; height:1.1em;
+    transform:translate(-50%,-50%) translateX(3.5em) rotate(0deg) scaleX(.8);
+    transform-origin:64% 50%;
+    background:linear-gradient(to left,
+      rgba(var(--sun),0) 8%,
+      rgba(var(--sun),.4) 22%,
+      rgba(var(--sun),.1) 52%,
+      rgba(var(--sun),0) 82%);
+    filter:blur(.9em); }
+  .ray.r2{ transform:translate(-50%,-50%) translateX(3.5em) rotate(4deg) scaleX(.74); opacity:0; }
+  .ray.r3{ transform:translate(-50%,-50%) translateX(3.5em) rotate(-4deg) scaleX(.7); }
+
+  /* hot narrow core */
+  .core{ width:27em; height:.52em;
+    transform:translate(-50%,-50%) translateX(3em) scaleX(.72);
+    transform-origin:64% 50%;
+    background:linear-gradient(to left,
+      rgba(var(--sun-core),0) 10%,
+      rgba(var(--sun-core),.72) 20%,
+      rgba(var(--sun),.2) 48%,
+      rgba(var(--sun),0) 78%);
+    filter:blur(.5em); }
+
+  /* the sun itself, off the right end of the shaft */
+  .source{ width:9em; height:9em; border-radius:50%;
+    transform:translate(-50%,-50%) translateX(13em);
+    background:radial-gradient(circle,
+      rgba(var(--sun-core),.95) 0%, rgba(var(--sun),.42) 26%,
+      rgba(var(--sun-deep),.16) 48%, rgba(var(--sun),0) 70%);
+    filter:blur(.4em); }
+
+  .lit .haze{ opacity:1; transform:translate(-50%,-50%) translateX(2.6em) scaleX(1); }
+  .lit .ray { opacity:1; transform:translate(-50%,-50%) translateX(2.2em) rotate(0deg) scaleX(1); }
+  .lit .ray.r2{ opacity:1; transform:translate(-50%,-50%) translateX(2.2em) rotate(4deg) scaleX(.92); }
+  .lit .ray.r3{ opacity:1; transform:translate(-50%,-50%) translateX(2.2em) rotate(-4deg) scaleX(.9); }
+  .lit .core{ opacity:1; transform:translate(-50%,-50%) translateX(2em) scaleX(1); }
+  .lit .source{ opacity:1; }
+
+  /* ---------- the name, lying along the beam ---------- */
+  .name{ position:relative; z-index:3; display:flex; align-items:baseline;
+    white-space:nowrap; letter-spacing:.06em; font-weight:600; line-height:1;
+    text-transform:uppercase; gap:.18em; }
+  .word{ white-space:nowrap; display:inline-flex; align-items:baseline; }
+  .name b{
+    display:inline-block; font-weight:inherit; color:var(--dim);
+    opacity:0; transform:translateY(.05em);
+    transition:opacity .9s ease, transform .9s ease;
+    will-change:opacity, color, text-shadow;
+  }
+  /* the in-shadow letters recede — smaller & tighter — so the lit
+     VRA and VEN clusters sit close together */
+  .name b:not(.on){ font-size:.6em; letter-spacing:.01em; }
+  .lit .name b{ opacity:1; transform:none; }
+
+  /* the six VRAVEN letters ignite warm-gold, a beat after the
+     name has appeared, sweeping in from the source side */
+  .name b.on{
+    transition:opacity .9s ease, transform .9s ease,
+               color 1.2s cubic-bezier(.2,.6,.2,1), text-shadow 1.2s ease;
+  }
+  .lit .name b.on{
+    color:var(--lit);
+    text-shadow:
+      0 0 .08em rgba(255,244,220,.95),
+      0 0 .26em rgba(var(--sun),.8),
+      0 0 .7em  rgba(var(--sun),.55),
+      0 0 1.5em rgba(var(--sun-deep),.4);
+  }
+  /* ignite delays: VEN (right) first → VRA (left) last */
+  .lit .name b.on.d0{ transition-delay:0s,0s,.55s,.55s; }
+  .lit .name b.on.d1{ transition-delay:0s,0s,.68s,.68s; }
+  .lit .name b.on.d2{ transition-delay:0s,0s,.81s,.81s; }
+  .lit .name b.on.d3{ transition-delay:0s,0s,.94s,.94s; }
+  .lit .name b.on.d4{ transition-delay:0s,0s,1.07s,1.07s; }
+  .lit .name b.on.d5{ transition-delay:0s,0s,1.20s,1.20s; }
+
+  /* ---------- contact, horizontal at the foot ---------- */
+  .contact{
+    position:fixed; left:0; right:0; bottom:clamp(26px,7vh,60px); z-index:3;
+    display:flex; gap:clamp(14px,4vw,38px); flex-wrap:wrap; justify-content:center;
+    font-family:Georgia, serif; font-size:clamp(11px,1.7vw,14px); letter-spacing:.18em;
+    opacity:0; transition:opacity 1.2s ease;
+  }
+  .revealed .contact{ opacity:1; }
+  .contact a{ color:rgba(226,196,150,.62); text-decoration:none;
+    border-bottom:1px solid rgba(226,196,150,.2); padding-bottom:2px;
+    transition:color .3s, border-color .3s; }
+  .contact a:hover{ color:#fff4dc; border-color:rgba(255,244,220,.6); }
+
+  .replay{
+    position:fixed; right:18px; bottom:16px; z-index:4;
+    background:transparent; border:1px solid rgba(226,196,150,.24);
+    color:rgba(226,196,150,.5); border-radius:20px;
+    font:600 10px/1 Georgia, serif; letter-spacing:.22em; text-transform:uppercase;
+    padding:8px 14px; cursor:pointer;
+    opacity:0; transition:opacity 1s ease, color .3s, border-color .3s; }
+  .revealed .replay{ opacity:1; }
+  .replay:hover{ color:#fff4dc; border-color:rgba(255,244,220,.55); }
+
+  .visually-hidden{ position:absolute!important; width:1px;height:1px;
+    overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+
+  @media (prefers-reduced-motion: reduce){
+    .beam,.name b,.contact,.replay{ transition:none !important; }
+  }
+</style>
+</head>
+<body>
+  <h1 class="visually-hidden">Vrastislav Vender — VRAVEN</h1>
+
+  <div class="vignette" aria-hidden="true"></div>
+
+  <div class="hero">
+    <div class="diagonal" id="diagonal">
+      <!-- volumetric sun beam -->
+      <div class="beam haze"  aria-hidden="true"></div>
+      <div class="beam ray r3" aria-hidden="true"></div>
+      <div class="beam ray r2" aria-hidden="true"></div>
+      <div class="beam ray"   aria-hidden="true"></div>
+      <div class="beam core"  aria-hidden="true"></div>
+      <div class="beam source" aria-hidden="true"></div>
+
+      <!-- the name, VRAVEN illuminated, rest in shadow -->
+      <div class="name" aria-label="Vrastislav Vender">
+        <span class="word">
+          <b class="on d5">V</b><b class="on d4">R</b><b class="on d3">A</b><b>S</b><b>T</b><b>I</b><b>S</b><b>L</b><b>A</b><b>V</b>
+        </span>
+        <span class="word">
+          <b class="on d2">V</b><b class="on d1">E</b><b class="on d0">N</b><b>D</b><b>E</b><b>R</b>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <nav class="contact" aria-label="Contact">
+    <a href="mailto:hello@vraven.com">hello@vraven.com</a>
+    <a href="tel:+420123456789">+420&nbsp;123&nbsp;456&nbsp;789</a>
+  </nav>
+
+  <button class="replay" type="button" aria-label="Replay animation">Replay</button>
+
+<script>
+(function(){
+  "use strict";
+  const body = document.body;
+  const diag = document.getElementById('diagonal');
+  const REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let timers = [];
+  const clear = () => { timers.forEach(clearTimeout); timers = []; };
+
+  function run(){
+    clear();
+    diag.classList.remove('lit');
+    body.classList.remove('revealed');
+    void diag.offsetWidth;                 // restart transitions
+
+    if (REDUCE){
+      diag.classList.add('lit');
+      body.classList.add('revealed');
+      return;
+    }
+    timers.push(setTimeout(()=> diag.classList.add('lit'), 450));      // beam in + ignite
+    timers.push(setTimeout(()=> body.classList.add('revealed'), 2400)); // contact last
+  }
+
+  document.addEventListener('click', e => { if (e.target.closest('a')) return; run(); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); run(); }
+  });
+  requestAnimationFrame(run);
+})();
+</script>
+</body>
+</html>
