@@ -24,9 +24,14 @@
 
   :root {
     --beam: 255, 233, 196;        /* warm-white beam tint (rgb) */
-    /* Horizontal anchor for BOTH the lit column and the light shaft,
-       so they never desync across viewports (no runtime rect math). */
-    --beam-x: 34%;
+    /* Horizontal anchor for the lit column / where the beam LANDS. */
+    --beam-x: 44%;
+    /* The light SOURCE: just off the upper-right corner. The shaft is
+       anchored here and tilts down-left so the cone rakes across the
+       name sitting at --beam-x. */
+    --src-x: 98%;
+    --src-y: -8%;
+    --beam-angle: 57deg;          /* tilt of the shaft from vertical */
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -56,12 +61,14 @@
      and dim, opens up during the reveal. ------------------------*/
   .rays {
     position: absolute;
-    top: -45%;
-    left: var(--beam-x);          /* shaft origin = lit-letter column */
-    width: 60vmax;
-    height: 165%;
-    transform: translateX(-50%) translateY(-12%) scaleY(0.6);
+    top: var(--src-y);            /* shaft hangs from the upper-right source */
+    left: var(--src-x);
+    width: 58vmax;
+    height: 175%;
+    /* Anchored at the source (top-centre of the cone), tilted down-left
+       so the beam streams from the corner onto the name. */
     transform-origin: 50% 0%;
+    transform: translateX(-50%) rotate(var(--beam-angle)) scaleY(0.6);
     pointer-events: none;
     mix-blend-mode: screen;
     opacity: 0;
@@ -109,16 +116,16 @@
   /* Soft pool of light landing on the lit column. */
   .pool {
     position: absolute;
-    top: 50%;
-    left: var(--beam-x);
-    width: 64vmax;
-    height: 42vmax;
-    transform: translate(-50%, -50%);
+    top: 49%;
+    left: calc(var(--beam-x) + 1%);
+    width: 60vmax;
+    height: 40vmax;
+    transform: translate(-50%, -50%) rotate(calc(var(--beam-angle) * 0.5));
     background: radial-gradient(
-      ellipse 40% 40% at 50% 50%,
-      rgba(var(--beam), 0.20) 0%,
-      rgba(var(--beam), 0.06) 46%,
-      rgba(var(--beam), 0.00) 70%
+      ellipse 42% 38% at 50% 50%,
+      rgba(var(--beam), 0.26) 0%,
+      rgba(var(--beam), 0.08) 48%,
+      rgba(var(--beam), 0.00) 72%
     );
     mix-blend-mode: screen;
     pointer-events: none;
@@ -301,7 +308,7 @@
      staged FEEL comes from per-property transition-delays in the CSS:
      rays/pool/dust + DIM letters at 0s, VRAVEN ignite at ~1.6s,
      contact/replay last at ~2.6s. */
-  .stage.revealed .rays       { opacity: 1; transform: translateX(-50%) translateY(0) scaleY(1); }
+  .stage.revealed .rays       { opacity: 1; transform: translateX(-50%) rotate(var(--beam-angle)) scaleY(1); }
   .stage.revealed .pool       { opacity: 1; }
   .stage.revealed .dust       { opacity: 1; }
   .stage.revealed .l          { opacity: 1; }                 /* dim name appears */
@@ -341,7 +348,14 @@
      On narrow screens the words effectively centre under the beam,
      and the dim tails simply extend toward the right edge. -------*/
   @media (max-width: 560px) {
-    :root { --beam-x: 44%; }
+    :root {
+      --beam-x: 44%;
+      /* On a tall, narrow viewport a gentle tilt keeps the beam clearly
+         entering from the upper-RIGHT corner before it pools on the name. */
+      --src-x: 86%;
+      --src-y: -4%;
+      --beam-angle: 33deg;
+    }
     /* on narrow screens the lit group is wider relative to the viewport,
        so a slightly smaller half-shift keeps the dim tails on-screen */
     .name-wrap { --lit-half: 1.35em; }
@@ -441,19 +455,25 @@
   /* --- Drifting dust motes caught in the beam.  Clustered toward the
          beam column (--beam-x) so the dust "catches" the light. --- */
   var dust = document.getElementById('dust');
-  var beamXpct = parseFloat(getComputedStyle(document.documentElement)
-                            .getPropertyValue('--beam-x')) || 34;
-  var MOTES = 24;
+  var css = getComputedStyle(document.documentElement);
+  var beamXpct = parseFloat(css.getPropertyValue('--beam-x')) || 44;   // where beam lands
+  var srcXpct  = parseFloat(css.getPropertyValue('--src-x'))  || 92;   // beam source (upper-right)
+  var MOTES = 26;
   for (var i = 0; i < MOTES; i++) {
     var m = document.createElement('span');
     m.className = 'mote';
     var size = 1 + Math.random() * 2.6;
-    var x = beamXpct + (Math.random() - 0.5) * 38;  // % across, around the shaft
-    var y = Math.random() * 100;                    // % down
+    // Spread motes ALONG the diagonal beam: t=0 at the source (top-right),
+    // t=1 at the landing pool (name). x interpolates source->landing as it
+    // descends, with a little jitter perpendicular to the shaft.
+    var t = Math.random();
+    var x = (srcXpct + (beamXpct - srcXpct) * t) + (Math.random() - 0.5) * 24;
+    var y = (-6 + 104 * t) + (Math.random() - 0.5) * 12;   // % down the beam
     m.style.width = m.style.height = size.toFixed(2) + 'px';
     m.style.left = x.toFixed(2) + '%';
     m.style.top  = y.toFixed(2) + '%';
-    m.style.setProperty('--dx', ((Math.random() - 0.5) * 60).toFixed(1) + 'px');
+    // drift back UP the beam toward the source (up + right)
+    m.style.setProperty('--dx', (10 + Math.random() * 50).toFixed(1) + 'px');
     m.style.setProperty('--dy', (-30 - Math.random() * 90).toFixed(1) + 'px');
     var dur = 9 + Math.random() * 12;
     m.style.animationDuration = dur.toFixed(1) + 's';
