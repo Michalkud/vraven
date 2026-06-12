@@ -1,2 +1,5 @@
 _workflow-artifacts/
 .DS_Store
+# dev screenshots & Playwright session files (repo root only)
+/.playwright-mcp/
+/*.png
